@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f0efea;
+  --foreground: #000000;
+  --primary: #2563eb;
+  --secondary: #475569;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", sans-serif;
+  overflow-x: hidden;
+}
+
+/* Vignette Effect */
+.vibe-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.03) 100%
+  );
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.02);
+  z-index: 50;
+}
+
+/* Hide scrollbar for clean look but allow scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Electron Drag Region */
+.titlebar {
+  -webkit-app-region: drag;
+  height: 30px; 
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+}
+
+/* Make interactive elements non-draggable */
+.titlebar button, 
+.titlebar a, 
+.titlebar input,
+.no-drag {
+  -webkit-app-region: no-drag;
+}

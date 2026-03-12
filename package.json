@@ -1,0 +1,59 @@
+{
+  "name": "imhaming-moeum",
+  "private": true,
+  "version": "0.0.5",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "base44:login": "base44 login",
+    "base44:push": "base44 entities push",
+    "base44:deploy": "npm run build && base44 deploy",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "electron:build": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^5.2.0",
+    "@azure/msal-react": "^5.0.4",
+    "@base44/sdk": "^0.8.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "express": "^5.2.1",
+    "framer-motion": "^12.34.0",
+    "lucide-react": "^0.475.0",
+    "react": "^18.2.0",
+    "react-big-calendar": "^1.19.4",
+    "react-dom": "^18.2.0",
+    "react-draggable": "^4.5.0",
+    "react-player": "^3.4.0",
+    "react-router-dom": "^7.13.0",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.0",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "win": {
+      "target": "zip"
+    },
+    "files": [
+      "dist-build/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release-build-v2",
+      "buildResources": "assets"
+    }
+  }
+}

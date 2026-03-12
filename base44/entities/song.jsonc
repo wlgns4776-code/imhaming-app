@@ -1,0 +1,50 @@
+{
+  "name": "Song",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Song title"
+    },
+    "artist": {
+      "type": "string",
+      "description": "Artist name"
+    },
+    "lyrics": {
+      "type": "string",
+      "description": "Song lyrics"
+    },
+    "key": {
+      "type": "string",
+      "description": "Musical key (e.g. C, Am)"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tags for the song"
+    },
+    "proficiency": {
+      "type": "string",
+      "description": "Proficiency level"
+    },
+    "conditionCheck": {
+      "type": "boolean",
+      "description": "Whether condition check is needed"
+    },
+    "remarks": {
+      "type": "string",
+      "description": "Additional remarks"
+    },
+    "youtubeUrl": {
+      "type": "string",
+      "description": "YouTube URL for the song",
+      "nullable": true
+    },
+    "mrUrl": {
+      "type": "string",
+      "description": "YouTube URL for MR/Instrumental",
+      "nullable": true
+    }
+  },
+  "required": ["title"]
+}

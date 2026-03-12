@@ -1,0 +1,19 @@
+{
+  "name": "AdminUser",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Username for login"
+    },
+    "password": {
+      "type": "string",
+      "description": "Password for login"
+    },
+    "role": {
+      "type": "string",
+      "description": "Role of the user (e.g., 'admin', 'part_distributor')"
+    }
+  },
+  "required": ["username", "password"]
+}

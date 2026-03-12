@@ -1,0 +1,36 @@
+{
+  "name": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Event title"
+    },
+    "start": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Start time (ISO string)"
+    },
+    "end": {
+      "type": "string",
+      "format": "date-time",
+      "description": "End time (ISO string)"
+    },
+    "order": {
+      "type": "integer",
+      "description": "Sorting order within the same day",
+      "default": 0
+    },
+    "externalId": {
+      "type": "string",
+      "description": "External ID from Microsoft Graph",
+      "nullable": true
+    },
+    "color": {
+      "type": "string",
+      "description": "Event color code (e.g. #3174ad)",
+      "default": "#3174ad"
+    }
+  },
+  "required": ["title", "start", "end"]
+}

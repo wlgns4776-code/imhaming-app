@@ -1,0 +1,16 @@
+{
+  "name": "CalendarMemo",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string",
+      "description": "Memo content"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last updated timestamp"
+    }
+  },
+  "required": ["content", "updatedAt"]
+}

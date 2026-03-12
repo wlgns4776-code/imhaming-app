@@ -1,0 +1,27 @@
+{
+  "name": "PartDistributor",
+  "type": "object",
+  "properties": {
+    "song_id": {
+      "type": "string",
+      "description": "Selected song ID"
+    },
+    "song_title": {
+      "type": "string",
+      "description": "Song Title"
+    },
+    "lyrics": {
+      "type": "string",
+      "description": "Lyrics text"
+    },
+    "members": {
+      "type": "string",
+      "description": "List of participating members"
+    },
+    "assignments": {
+      "type": "string",
+      "description": "List of assigned parts"
+    }
+  },
+  "required": []
+}

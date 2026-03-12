@@ -1,0 +1,19 @@
+{
+  "name": "LedgerUser",
+  "type": "object",
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "description": "User nickname"
+    },
+    "userId": {
+      "type": "string",
+      "description": "User ID (optional)"
+    },
+    "counts": {
+      "type": "object",
+      "description": "Map of item names to counts (e.g. {'Song': 1, 'QuickView': 0})"
+    }
+  },
+  "required": ["nickname"]
+}

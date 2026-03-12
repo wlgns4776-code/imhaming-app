@@ -1,0 +1,11 @@
+{
+  "name": "LedgerConfig",
+  "type": "object",
+  "properties": {
+    "columns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of column names for the ledger"
+    }
+  }
+}
