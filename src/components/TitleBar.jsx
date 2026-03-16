@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Minus, Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Menu, X, Minus, Monitor, Smartphone, Tablet, Download, RefreshCw } from 'lucide-react';
 
 const TitleBar = ({ isEditing, setIsEditing }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [opacity, setOpacity] = useState(1);
   const [isElectron, setIsElectron] = useState(false);
 
+  // Auto Updater State
+  const [updateStatus, setUpdateStatus] = useState(null); // 'available', 'downloading', 'downloaded'
+  const [progress, setProgress] = useState(0);
+
   useEffect(() => {
     // Check if running in Electron
     if (window.electronAPI) {
       setIsElectron(true);
+      
+      // Auto updater listeners
+      window.electronAPI.onUpdateAvailable(() => setUpdateStatus('available'));
+      window.electronAPI.onUpdateProgress((progObj) => {
+        setUpdateStatus('downloading');
+        setProgress(Math.round(progObj.percent));
+      });
+      window.electronAPI.onUpdateDownloaded(() => setUpdateStatus('downloaded'));
     }
   }, []);
 
@@ -37,8 +49,24 @@ const TitleBar = ({ isEditing, setIsEditing }) => {
   return (
     <>
       <div className="h-10 bg-white/80 backdrop-blur-md flex items-center justify-between px-2 select-none z-[10000] fixed top-0 left-0 right-0 border-b border-gray-200/50 input-drag titlebar">
-        {/* Left: Drag Region (Spacer) */}
-        <div className="flex-1 h-full titlebar-drag-region" />
+        {/* Left: Drag Region (Spacer & Updater UI) */}
+        <div className="flex-1 h-full titlebar-drag-region flex items-center px-4">
+          {updateStatus === 'downloading' && (
+            <div className="flex items-center gap-2 text-xs font-medium text-gray-500 bg-white/50 px-3 py-1 rounded-full border border-white/40">
+              <Download size={14} className="animate-bounce" />
+              업데이트 다운로드 중... {progress}%
+            </div>
+          )}
+          {updateStatus === 'downloaded' && (
+            <button 
+              onClick={() => window.electronAPI.quitAndInstall()}
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded-full shadow-sm transition-all no-drag z-50"
+            >
+              <RefreshCw size={14} />
+              재시작하여 업데이트 적용
+            </button>
+          )}
+        </div>
 
         {/* Right: Controls */}
         <div className="flex items-center gap-2 no-drag ml-auto">

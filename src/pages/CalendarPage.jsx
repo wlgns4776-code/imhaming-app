@@ -24,6 +24,21 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+const CustomEvent = ({ event }) => (
+  <div className="flex w-full cursor-pointer text-gray-800 items-start" style={{ whiteSpace: 'normal', wordBreak: 'keep-all', lineHeight: '1.2', gap: '5px', padding: '1px 0' }}>
+    <div 
+      className="flex-shrink-0 rounded-full" 
+      style={{ 
+        width: '8px', 
+        height: '8px', 
+        backgroundColor: event.color || '#3b82f6', 
+        marginTop: '2.5px'
+      }} 
+    />
+    <span className="text-[11px] leading-tight break-words text-left flex-1 font-medium">{event.title}</span>
+  </div>
+);
+
 const CalendarPage = () => {
   const [events, setEvents] = useState([]);
   const { isAdmin } = useAuth();
@@ -280,18 +295,15 @@ const CalendarPage = () => {
             components={{
               month: {
                 dateHeader: CustomDateHeader
-              }
+              },
+              event: CustomEvent
             }}
             eventPropGetter={(event) => ({
               style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
-                fontSize: '0.85rem',
-                padding: '2px 4px',
-                backgroundColor: event.color || '#3b82f6',
-                borderColor: event.color || '#3b82f6'
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+                padding: '1px 2px',
+                color: '#333'
               }
             })}
           />

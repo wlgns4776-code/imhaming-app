@@ -2,6 +2,7 @@ const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const express = require('express');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let server;
@@ -144,6 +145,26 @@ ipcMain.on('get-size', (event) => {
     }
 });
 
+// Auto Updater Handlers
+autoUpdater.on('update-available', (info) => {
+  if (mainWindow) mainWindow.webContents.send('update-available', info);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
+});
+
+autoUpdater.on('error', (err) => {
+  if (mainWindow) mainWindow.webContents.send('update-error', err.message);
+});
+
+ipcMain.on('quit-and-install', () => {
+    autoUpdater.quitAndInstall(false, true); // (keep silent, force restart)
+});
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -162,6 +183,11 @@ if (!gotTheLock) {
 
 app.on('ready', () => {
   createWindow();
+  
+  // Checking for updates after a short delay to ensure UI is ready
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 2000);
 });
 
 app.on('window-all-closed', function () {

@@ -57,3 +57,33 @@ body {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Calendar Custom Styles */
+.rbc-month-view, .rbc-time-view, .rbc-agenda-view, .rbc-header {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+.rbc-month-row, .rbc-day-bg, .rbc-time-header-content {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+.rbc-header + .rbc-header {
+  border-left: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+/* DesktopCal-like Events styling */
+.rbc-event {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+}
+
+.rbc-event-content {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+/* Ensure selected cells look clean */
+.rbc-day-slot .rbc-background-event {
+  background-color: transparent !important;
+}

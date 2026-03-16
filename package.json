@@ -20,6 +20,7 @@
     "@base44/sdk": "^0.8.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "electron-updater": "^6.8.3",
     "express": "^5.2.1",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.475.0",
@@ -47,6 +48,11 @@
     "win": {
       "target": "zip"
     },
+    "publish": [{
+      "provider": "github",
+      "owner": "wlgns4776-code",
+      "repo": "imhaming-app"
+    }],
     "files": [
       "dist-build/**/*",
       "electron/**/*"
