@@ -25,17 +25,18 @@ const localizer = dateFnsLocalizer({
 });
 
 const CustomEvent = ({ event }) => (
-  <div className="flex w-full cursor-pointer text-gray-800 items-start" style={{ whiteSpace: 'normal', wordBreak: 'keep-all', lineHeight: '1.2', gap: '5px', padding: '1px 0' }}>
+  <div className="flex w-full cursor-pointer text-gray-800 items-center overflow-hidden" style={{ whiteSpace: 'nowrap', lineHeight: '1', gap: '4px', padding: '0' }}>
     <div 
       className="flex-shrink-0 rounded-full" 
       style={{ 
-        width: '8px', 
-        height: '8px', 
+        width: '6px', 
+        height: '6px', 
         backgroundColor: event.color || '#3b82f6', 
-        marginTop: '2.5px'
       }} 
     />
-    <span className="text-[11px] leading-tight break-words text-left flex-1 font-medium">{event.title}</span>
+    <span className="text-[11px] truncate flex-1 text-left font-medium" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+      {event.title}
+    </span>
   </div>
 );
 

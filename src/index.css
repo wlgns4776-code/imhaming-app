@@ -74,13 +74,15 @@ body {
   background-color: transparent !important;
   border: none !important;
   padding: 0 !important;
-  height: auto !important;
-  min-height: auto !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin-bottom: 2px !important;
 }
 
 .rbc-event-content {
-  white-space: normal !important;
-  overflow: visible !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 /* Ensure selected cells look clean */
