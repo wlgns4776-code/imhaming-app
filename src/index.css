@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'MemomentKkukkuk';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2405-2@1.0/MemomentKkukkuk.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
 :root {
   --background: #f0efea;
   --foreground: #000000;
@@ -58,34 +65,104 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Calendar Custom Styles */
+/* ===== Calendar Custom Styles (mooneyou style) ===== */
+
+/* 테두리 색상 - 아주 연하게 */
 .rbc-month-view, .rbc-time-view, .rbc-agenda-view, .rbc-header {
-  border-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 .rbc-month-row, .rbc-day-bg, .rbc-time-header-content {
-  border-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }
 .rbc-header + .rbc-header {
-  border-left: 1px solid rgba(0, 0, 0, 0.04) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
 
-/* DesktopCal-like Events styling */
+/* 요일 헤더 스타일 */
+.rbc-header {
+  padding: 10px 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  text-transform: none !important;
+}
+
+/* 날짜 셀 내부 패딩 - 넉넉하게 */
+.rbc-date-cell {
+  padding: 6px 8px 4px !important;
+  font-size: 13px !important;
+}
+
+/* 날짜 셀 클릭 영역(day-bg) */
+.rbc-day-bg {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 이벤트 전체 컨테이너 */
 .rbc-event {
   background-color: transparent !important;
   border: none !important;
-  padding: 0 !important;
-  height: 16px !important;
-  min-height: 16px !important;
-  margin-bottom: 2px !important;
+  padding: 0 2px !important;
+  height: auto !important;
+  min-height: unset !important;
+  margin-bottom: 5px !important;  /* 이벤트 간 간격 넓힘 */
+  overflow: visible !important;
+  cursor: pointer !important;
 }
 
+/* 이벤트 내용 */
 .rbc-event-content {
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  height: auto !important;
+  line-height: 1.5 !important;
 }
 
-/* Ensure selected cells look clean */
+/* 이벤트 hover 효과 */
+.rbc-event:hover {
+  opacity: 0.8;
+}
+
+/* 이벤트 줄(row) 컨텐츠 영역 */
+.rbc-row-content {
+  overflow: visible !important;
+  padding: 2px 4px !important;
+}
+
+/* month view row 높이 유동 허용 */
+.rbc-month-row {
+  overflow: visible !important;
+  min-height: 90px !important;  /* 최소 높이 확보로 시원한 느낌 */
+}
+
+/* today 셀 강조 */
+.rbc-today {
+  background-color: rgba(59, 130, 246, 0.04) !important;
+}
+
+/* off-range 날짜 (전/다음달) */
+.rbc-off-range-bg {
+  background-color: rgba(0, 0, 0, 0.015) !important;
+}
+
+/* week/day view */
+.rbc-time-content {
+  border-top-color: rgba(0, 0, 0, 0.06) !important;
+}
+.rbc-time-slot {
+  border-top-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 선택 영역 */
+.rbc-slot-selection {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* background event */
 .rbc-day-slot .rbc-background-event {
   background-color: transparent !important;
 }

@@ -28,8 +28,17 @@
     },
     "color": {
       "type": "string",
-      "description": "Event color code (e.g. #3174ad)",
-      "default": "#3174ad"
+      "description": "Event color code"
+    },
+    "time": {
+      "type": "string",
+      "description": "Specific time of the event (HH:mm format)",
+      "nullable": true
+    },
+    "memo": {
+      "type": "string",
+      "description": "Additional notes or description",
+      "nullable": true
     }
   },
   "required": ["title", "start", "end"]
