@@ -1,7 +1,11 @@
 {
   "name": "imhaming-moeum",
   "private": true,
-  "version": "0.0.5",
+  "version": "1.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wlgns4776-code/imhaming-app.git"
+  },
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -46,13 +50,15 @@
   },
   "build": {
     "win": {
-      "target": "zip"
+      "target": "nsis"
     },
-    "publish": [{
-      "provider": "github",
-      "owner": "wlgns4776-code",
-      "repo": "imhaming-app"
-    }],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "wlgns4776-code",
+        "repo": "imhaming-app"
+      }
+    ],
     "files": [
       "dist-build/**/*",
       "electron/**/*"
