@@ -47,9 +47,19 @@ const AddEventModal = ({ isOpen, onClose, onConfirm, onDelete, start, end, event
 
   if (!isOpen) return null;
 
-  const dateLabel = start
-    ? start.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
-    : event?.start?.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  const formatDate = (d) => d?.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  let dateLabel = '';
+  if (event) {
+    const sStr = formatDate(event.start);
+    const eStr = formatDate(event.end);
+    dateLabel = sStr === eStr ? sStr : `${sStr} ~ ${eStr}`;
+  } else if (start && end) {
+    const sStr = formatDate(start);
+    const eStr = formatDate(end);
+    dateLabel = sStr === eStr ? sStr : `${sStr} ~ ${eStr}`;
+  } else if (start) {
+    dateLabel = formatDate(start);
+  }
 
   return (
     <AnimatePresence>

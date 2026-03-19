@@ -68,6 +68,7 @@ function sortDayEvents(events) {
 const EventItem = ({ ev, isAdmin, onClick }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState("right");
   const tooltipRef = useRef(null);
   const hasDetail = ev.memo || ev.time;
 
@@ -83,12 +84,34 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, [tooltipOpen]);
 
+  /* Calculate space and decide direction */
+  const checkPositionAndOpen = (action) => {
+    if (tooltipRef.current) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      // If remaining space on the right is less than ~250px, open to the left
+      if (window.innerWidth - rect.right < 250) {
+        setTooltipPos("left");
+      } else {
+        setTooltipPos("right");
+      }
+    }
+    action();
+  };
+
+  const handleMouseEnter = () => {
+    checkPositionAndOpen(() => setIsHovered(true));
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+  };
+
   const handleClick = (e) => {
     e.stopPropagation();
     if (isAdmin) {
       onClick(ev);             // admin → open edit modal
     } else if (hasDetail) {
-      setTooltipOpen((o) => !o); // user → toggle read-only popup
+      checkPositionAndOpen(() => setTooltipOpen((o) => !o)); // user → toggle popup
     }
   };
 
@@ -97,6 +120,8 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
       className="relative" 
       ref={tooltipRef}
       style={{ zIndex: isHovered ? 9999 : (tooltipOpen ? 9000 : 1) }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
     >
       {/* Excel-style red triangle for memo indication */}
       {ev.memo && (
@@ -109,8 +134,8 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
           (isAdmin || hasDetail) ? "cursor-pointer" : "cursor-default",
         ].join(" ")}
         onClick={handleClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Dot */}
         <span
@@ -144,7 +169,7 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.1 }}
-            className="absolute z-[10001] left-[90%] top-[-10px] w-52 bg-[#FFFFE1] border border-gray-400 p-3 shadow-xl rounded-sm pointer-events-none"
+            className={`absolute z-[10001] ${tooltipPos === "left" ? "right-[90%]" : "left-[90%]"} top-[-10px] w-52 bg-[#FFFFE1] border border-gray-400 p-3 shadow-xl rounded-sm pointer-events-none`}
           >
             <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-yellow-200/50">
               <FileText size={11} className="text-yellow-700/60" />
@@ -154,8 +179,17 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
               {ev.memo}
             </div>
             {/* Pointer arrow */}
-            <div className="absolute top-[15px] -left-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-gray-400 border-b-[6px] border-b-transparent" />
-            <div className="absolute top-[15px] -left-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-[#FFFFE1] border-b-[6px] border-b-transparent" />
+            {tooltipPos === "left" ? (
+              <>
+                <div className="absolute top-[15px] -right-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-gray-400 border-b-[6px] border-b-transparent" />
+                <div className="absolute top-[15px] -right-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-[#FFFFE1] border-b-[6px] border-b-transparent" />
+              </>
+            ) : (
+              <>
+                <div className="absolute top-[15px] -left-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-gray-400 border-b-[6px] border-b-transparent" />
+                <div className="absolute top-[15px] -left-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-[#FFFFE1] border-b-[6px] border-b-transparent" />
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -168,7 +202,7 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-[9000] left-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3"
+            className={`absolute z-[9000] ${tooltipPos === "left" ? "right-0" : "left-0"} top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Popup header */}
@@ -213,7 +247,11 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
 /* ─────────────────────────────────────────────────────
    Custom Month Grid Cell
 ───────────────────────────────────────────────────── */
-const MonthCell = ({ date, currentMonth, events, isToday, onSlotClick, onEventClick, isAdmin }) => {
+const MonthCell = ({ 
+  date, currentMonth, events, isToday, 
+  onSlotClick, onEventClick, isAdmin,
+  isSelected, onMouseDown, onMouseEnter, onTouchStart
+}) => {
   const iso        = isoDate(date);
   const dayOfWeek  = date.getDay();
   const holiday    = HOLIDAYS[iso];
@@ -232,13 +270,16 @@ const MonthCell = ({ date, currentMonth, events, isToday, onSlotClick, onEventCl
 
   return (
     <div
+      data-timestamp={date.getTime()}
       className={[
         "flex flex-col min-h-[110px] px-1.5 pt-1.5 pb-2 border-b border-r border-gray-100 select-none transition-colors",
-        isToday ? "bg-blue-50/70" : "bg-white hover:bg-gray-50/60",
+        isSelected ? "bg-blue-100/60 border-blue-200" : (isToday ? "bg-blue-50/70" : "bg-white hover:bg-gray-50/60"),
         !isCurrentMonth ? "opacity-50" : "",
         isAdmin ? "cursor-pointer" : "cursor-default",
       ].join(" ")}
-      onClick={() => isAdmin && onSlotClick({ start: date, end: date })}
+      onMouseDown={onMouseDown}
+      onMouseEnter={onMouseEnter}
+      onTouchStart={onTouchStart}
     >
       {/* Date number row */}
       <div className="flex items-start gap-1 mb-1.5">
@@ -293,8 +334,83 @@ const MonthGrid = ({ currentDate, events, onSlotClick, onEventClick, isAdmin }) 
     weeks.push(week);
   }
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const gridRef = useRef(null);
+
+  const startDrag = (date) => {
+    if (!isAdmin) return;
+    setIsDragging(true);
+    setSelectionStart(date);
+    setSelectionEnd(date);
+  };
+
+  const updateDrag = (date) => {
+    if (!isDragging || !isAdmin) return;
+    setSelectionEnd(date);
+  };
+
+  const endDrag = useCallback(() => {
+    if (!isDragging || !isAdmin) return;
+    setIsDragging(false);
+    if (selectionStart && selectionEnd) {
+      const start = selectionStart < selectionEnd ? selectionStart : selectionEnd;
+      const end = selectionStart > selectionEnd ? selectionStart : selectionEnd;
+      onSlotClick({ start, end });
+    }
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  }, [isDragging, isAdmin, selectionStart, selectionEnd, onSlotClick]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isDragging) endDrag();
+    };
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchend", handleMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchend", handleMouseUp);
+    };
+  }, [isDragging, endDrag]);
+
+  useEffect(() => {
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+
+    const handleTouchMove = (e) => {
+      if (!isDragging || !isAdmin) return;
+      e.preventDefault(); // Prevent scroll while dragging
+
+      const touch = e.touches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (element) {
+        const cell = element.closest('[data-timestamp]');
+        if (cell) {
+          const timestamp = parseInt(cell.getAttribute('data-timestamp'), 10);
+          if (!isNaN(timestamp)) {
+            setSelectionEnd(new Date(timestamp));
+          }
+        }
+      }
+    };
+
+    gridEl.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => {
+      gridEl.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [isDragging, isAdmin]);
+
+  let dragRangeStart = null;
+  let dragRangeEnd = null;
+  if (isDragging && selectionStart && selectionEnd) {
+    dragRangeStart = selectionStart < selectionEnd ? selectionStart : selectionEnd;
+    dragRangeEnd = selectionStart > selectionEnd ? selectionStart : selectionEnd;
+  }
+
   return (
-    <div className="flex flex-col flex-1 overflow-auto">
+    <div className="flex flex-col flex-1 overflow-auto" ref={gridRef} style={{ touchAction: isDragging ? 'none' : 'auto' }}>
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b border-t border-gray-200 bg-gray-50/80">
         {KO_DAYS.map((d, i) => (
@@ -313,18 +429,25 @@ const MonthGrid = ({ currentDate, events, onSlotClick, onEventClick, isAdmin }) 
       {/* Weeks */}
       {weeks.map((week, wi) => (
         <div key={wi} className="grid grid-cols-7 flex-1">
-          {week.map((d, di) => (
-            <MonthCell
-              key={di}
-              date={d}
-              currentMonth={currentDate}
-              events={events}
-              isToday={isSameDay(d, today)}
-              onSlotClick={onSlotClick}
-              onEventClick={onEventClick}
-              isAdmin={isAdmin}
-            />
-          ))}
+          {week.map((d, di) => {
+            const isSelected = dragRangeStart && dragRangeEnd && d >= dragRangeStart && d <= dragRangeEnd;
+            return (
+              <MonthCell
+                key={di}
+                date={d}
+                currentMonth={currentDate}
+                events={events}
+                isToday={isSameDay(d, today)}
+                onSlotClick={onSlotClick}
+                onEventClick={onEventClick}
+                isAdmin={isAdmin}
+                isSelected={isSelected}
+                onMouseDown={() => startDrag(d)}
+                onMouseEnter={() => updateDrag(d)}
+                onTouchStart={() => startDrag(d)}
+              />
+            );
+          })}
         </div>
       ))}
     </div>
