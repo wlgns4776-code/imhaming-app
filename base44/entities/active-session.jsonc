@@ -1,0 +1,35 @@
+{
+  "name": "ActiveSession",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Logged-in user's username"
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Unique tab-based session ID"
+    },
+    "is_super_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the user is a super admin"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["online", "away", "offline"],
+      "default": "online",
+      "description": "Real-time user status based on tab visibility"
+    },
+    "last_active_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last heartbeat signal"
+    },
+    "ip": {
+      "type": "string",
+      "description": "Public IP obtained via ipify"
+    }
+  },
+  "required": ["username", "sessionId", "last_active_at"]
+}

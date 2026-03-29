@@ -1,7 +1,7 @@
 {
   "name": "imhaming-moeum",
   "private": true,
-  "version": "1.0.9",
+  "version": "1.0.10",
   "repository": {
     "type": "git",
     "url": "https://github.com/wlgns4776-code/imhaming-app.git"
@@ -22,6 +22,7 @@
     "@azure/msal-browser": "^5.2.0",
     "@azure/msal-react": "^5.0.4",
     "@base44/sdk": "^0.8.3",
+    "@floating-ui/react": "^0.27.19",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "electron-updater": "^6.8.3",

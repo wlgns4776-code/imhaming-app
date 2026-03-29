@@ -1,0 +1,495 @@
+/* ─────────────────────────────────────────────────────
+   EventBlock – single event or spanning bar
+───────────────────────────────────────────────────── */
+const EventBlock = ({ pe, isAdmin, onClick }) => {
+  const { event: ev, isActualStart, isActualEnd, duration } = pe;
+  const isMultiDay = duration > 0;
+  const hasTime = ev.time && ev.time.trim() !== "";
+  const isAllDay = isMultiDay || !hasTime;
+
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState("right");
+  const tooltipRef = useRef(null);
+  const hasDetail = ev.memo || ev.time;
+
+  useEffect(() => {
+    if (!tooltipOpen) return;
+    const handler = (e) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(e.target)) {
+        setTooltipOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [tooltipOpen]);
+
+  const checkPositionAndOpen = (action) => {
+    if (tooltipRef.current) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      const midPoint = (rect.left + rect.right) / 2;
+      if (window.innerWidth - midPoint < 250) {
+        setTooltipPos("left");
+      } else {
+        setTooltipPos("right");
+      }
+    }
+    action();
+  };
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (isAdmin) {
+      onClick(ev);
+    } else if (hasDetail) {
+      checkPositionAndOpen(() => setTooltipOpen((o) => !o));
+    }
+  };
+
+  const bg = ev.color || "#3B82F6";
+
+  return (
+    <div 
+      ref={tooltipRef}
+      className="relative h-full pointer-events-auto group px-0.5"
+      style={{ zIndex: isHovered ? 9999 : (tooltipOpen ? 9000 : 1) }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onMouseEnter={() => checkPositionAndOpen(() => setIsHovered(true))}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
+    >
+      <div
+        className={[
+          "flex items-start min-h-[20px]",
+          (isAdmin || hasDetail) ? "cursor-pointer" : "cursor-default",
+          isAllDay ? "shadow-sm border border-transparent hover:brightness-95 transition-all" : "hover:bg-gray-50/80 rounded"
+        ].join(" ")}
+        style={
+          isAllDay 
+          ? {
+              backgroundColor: bg,
+              color: "white", 
+              padding: "2px 6px",
+              borderTopLeftRadius: isActualStart ? "6px" : "0px",
+              borderBottomLeftRadius: isActualStart ? "6px" : "0px",
+              borderTopRightRadius: isActualEnd ? "6px" : "0px",
+              borderBottomRightRadius: isActualEnd ? "6px" : "0px",
+              marginLeft: isActualStart ? "2px" : "0px",
+              marginRight: isActualEnd ? "2px" : "0px",
+            }
+          : {
+              backgroundColor: "transparent",
+              color: "#374151",
+              padding: "2px 4px",
+              marginLeft: "2px",
+              marginRight: "2px",
+            }
+        }
+      >
+        {ev.memo && (
+          <div className="absolute top-[2px] right-[4px] w-0 h-0 border-t-[8px] border-t-red-500 border-l-[8px] border-l-transparent pointer-events-none opacity-90" />
+        )}
+
+        <div className="flex flex-col min-w-0 w-full">
+          {(!isAllDay && ev.time) && (
+             <div className="flex items-start gap-1.5 min-w-0">
+               <span
+                 className="mt-[5px] w-[7px] h-[7px] rounded-full flex-shrink-0 transition-transform group-hover:scale-125"
+                 style={{ backgroundColor: bg }}
+               />
+               <div className="flex flex-col min-w-0 w-full">
+                 <span className="text-[9px] font-semibold text-gray-400 leading-none mb-0.5 flex items-center gap-0.5 mt-[2px]">
+                   <Clock size={7} className="inline-block" />
+                   {formatDisplayTime(ev.time)}
+                 </span>
+                 <span
+                   className="text-[11.5px] leading-tight text-gray-700 group-hover:text-gray-900 transition-colors"
+                   style={{ wordBreak: "keep-all", whiteSpace: "normal" }}
+                 >
+                   {ev.title}
+                 </span>
+               </div>
+             </div>
+          )}
+
+          {isAllDay && (
+            <div className="flex flex-col min-w-0 w-full">
+              {ev.time && (
+                 <span className="text-[9px] font-semibold text-white/80 leading-none mb-0.5 mt-[1px] flex items-center gap-0.5">
+                   <Clock size={7} className="inline-block" />
+                   {formatDisplayTime(ev.time)}
+                 </span>
+              )}
+              <span
+                className="text-[11.5px] leading-tight text-white font-medium break-all whitespace-normal"
+                style={{ wordBreak: "keep-all" }}
+              >
+                {ev.title}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isHovered && ev.memo && !tooltipOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            className={`absolute z-[10001] ${tooltipPos === "left" ? "right-[50%]" : "left-[50%]"} top-[-10px] w-52 bg-[#FFFFE1] border border-gray-400 p-3 shadow-xl rounded-sm pointer-events-none`}
+            style={{ [tooltipPos === "left" ? "marginRight" : "marginLeft"]: "15px" }}
+          >
+            <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-yellow-200/50">
+              <FileText size={11} className="text-yellow-700/60" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-800/60">Memo</span>
+            </div>
+            <div className="text-[13px] text-gray-800 leading-relaxed break-words whitespace-pre-wrap font-medium">
+              {ev.memo}
+            </div>
+            {tooltipPos === "left" ? (
+              <>
+                <div className="absolute top-[15px] -right-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-gray-400 border-b-[6px] border-b-transparent" />
+                <div className="absolute top-[15px] -right-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-[#FFFFE1] border-b-[6px] border-b-transparent" />
+              </>
+            ) : (
+              <>
+                <div className="absolute top-[15px] -left-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-gray-400 border-b-[6px] border-b-transparent" />
+                <div className="absolute top-[15px] -left-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-[#FFFFE1] border-b-[6px] border-b-transparent" />
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!isAdmin && tooltipOpen && hasDetail && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className={`absolute z-[9000] ${tooltipPos === "left" ? "right-0" : "left-0"} top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3 cursor-default`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: bg }}
+                />
+                <span className="font-bold text-sm text-gray-800 leading-tight">
+                  {ev.title}
+                </span>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTooltipOpen(false); }}
+                className="text-gray-300 hover:text-gray-500 flex-shrink-0 transition-colors"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            {ev.time && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+                <Clock size={11} className="text-blue-400" />
+                <span className="font-semibold text-blue-600">{formatDisplayTime(ev.time)}</span>
+              </div>
+            )}
+
+            {ev.memo && (
+              <div className="flex gap-1.5 text-xs text-gray-600 mt-1.5 pt-1.5 border-t border-gray-100">
+                <FileText size={11} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                <p className="leading-relaxed whitespace-pre-wrap break-words">{ev.memo}</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────────────
+   Custom Month Grid
+───────────────────────────────────────────────────── */
+const MonthGrid = ({ currentDate, events, onSlotClick, onEventClick, isAdmin }) => {
+  const today      = new Date();
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd   = endOfMonth(currentDate);
+  const gridStart  = startOfWeekFn(monthStart, { weekStartsOn: 0 });
+  const gridEnd    = endOfWeek(monthEnd, { weekStartsOn: 0 });
+
+  const weeks = [];
+  let day = gridStart;
+  while (day <= gridEnd) {
+    const week = [];
+    for (let i = 0; i < 7; i++) { week.push(day); day = addDays(day, 1); }
+    weeks.push(week);
+  }
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const gridRef = useRef(null);
+
+  const startDrag = (date) => {
+    if (!isAdmin) return;
+    setIsDragging(true);
+    setSelectionStart(date);
+    setSelectionEnd(date);
+  };
+
+  const updateDrag = (date) => {
+    if (!isDragging || !isAdmin) return;
+    setSelectionEnd(date);
+  };
+
+  const endDrag = useCallback(() => {
+    if (!isDragging || !isAdmin) return;
+    setIsDragging(false);
+    if (selectionStart && selectionEnd) {
+      let start = selectionStart;
+      let end = selectionEnd;
+      if (start > end) {
+        let temp = start;
+        start = end;
+        end = temp;
+      }
+      onSlotClick({ start, end });
+    }
+    setSelectionStart(null);
+    setSelectionEnd(null);
+  }, [isDragging, isAdmin, selectionStart, selectionEnd, onSlotClick]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isDragging) endDrag();
+    };
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchend", handleMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchend", handleMouseUp);
+    };
+  }, [isDragging, endDrag]);
+
+  useEffect(() => {
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+
+    const handleTouchMove = (e) => {
+      if (!isDragging || !isAdmin) return;
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (element) {
+        const cell = element.closest('[data-timestamp]');
+        if (cell) {
+          const timestamp = parseInt(cell.getAttribute('data-timestamp'), 10);
+          if (!isNaN(timestamp)) {
+            setSelectionEnd(new Date(timestamp));
+          }
+        }
+      }
+    };
+
+    gridEl.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => {
+      gridEl.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [isDragging, isAdmin]);
+
+  let dragRangeStart = null;
+  let dragRangeEnd = null;
+  if (isDragging && selectionStart && selectionEnd) {
+    dragRangeStart = selectionStart < selectionEnd ? selectionStart : selectionEnd;
+    dragRangeEnd = selectionStart > selectionEnd ? selectionStart : selectionEnd;
+    dragRangeStart = startOfDay(dragRangeStart);
+    dragRangeEnd = startOfDay(dragRangeEnd);
+  }
+
+  return (
+    <div className="flex flex-col flex-1 overflow-auto" ref={gridRef} style={{ touchAction: isDragging ? 'none' : 'auto' }}>
+      {/* Day headers */}
+      <div className="grid grid-cols-7 border-b border-t border-gray-200 bg-gray-50/80 shrink-0">
+        {KO_DAYS.map((d, i) => (
+          <div
+            key={d}
+            className={[
+              "py-2 text-center text-[12px] font-semibold",
+              i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-gray-500",
+            ].join(" ")}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Weeks */}
+      {weeks.map((week, wi) => {
+        const weekStart = startOfDay(week[0]);
+        const weekEnd   = startOfDay(week[6]);
+
+        const overlappingEvents = events.filter(e => {
+           const eStart = startOfDay(new Date(e.start));
+           const eEnd = startOfDay(new Date(e.end || e.start));
+           return eStart <= weekEnd && eEnd >= weekStart;
+        });
+
+        overlappingEvents.sort((a, b) => {
+          const aStart = startOfDay(new Date(a.start));
+          const bStart = startOfDay(new Date(b.start));
+          const aEnd = startOfDay(new Date(a.end || a.start));
+          const bEnd = startOfDay(new Date(b.end || b.start));
+          
+          const aDur = differenceInCalendarDays(aEnd, aStart);
+          const bDur = differenceInCalendarDays(bEnd, bStart);
+          
+          if (aDur !== bDur) return bDur - aDur; 
+          if (aStart.getTime() !== bStart.getTime()) return aStart.getTime() - bStart.getTime();
+          
+          const aHasTime = a.time && a.time.trim() !== "";
+          const bHasTime = b.time && b.time.trim() !== "";
+          if (aHasTime && bHasTime) return a.time.localeCompare(b.time);
+          if (aHasTime && !bHasTime) return -1;
+          if (!aHasTime && bHasTime) return 1;
+          
+          return (a.order || 0) - (b.order || 0);
+        });
+
+        const rows = [];
+        const positionedEvents = overlappingEvents.map(ev => {
+           const eStart = startOfDay(new Date(ev.start));
+           const eEnd = startOfDay(new Date(ev.end || ev.start));
+           
+           const diffStart = differenceInCalendarDays(eStart, weekStart);
+           const diffEnd = differenceInCalendarDays(eEnd, weekStart);
+           
+           const spanStart = Math.max(0, diffStart);
+           const spanEnd = Math.min(6, diffEnd);
+
+           let row = 0;
+           while (true) {
+             if (!rows[row]) rows[row] = Array(7).fill(false);
+             let canPlace = true;
+             for (let c = spanStart; c <= spanEnd; c++) {
+                if (rows[row][c]) {
+                  canPlace = false;
+                  break;
+                }
+             }
+             if (canPlace) {
+                for (let c = spanStart; c <= spanEnd; c++) rows[row][c] = true;
+                break;
+             }
+             row++;
+           }
+
+           return {
+             event: ev,
+             spanStart,
+             spanEnd,
+             row,
+             isActualStart: diffStart >= 0,
+             isActualEnd: diffEnd <= 6,
+             duration: differenceInCalendarDays(eEnd, eStart)
+           };
+        });
+
+        const rowCount = Math.max(1, rows.length);
+
+        return (
+          <div key={wi} className="grid grid-cols-7 flex-1 border-b border-gray-100 relative" style={{ gridAutoRows: "max-content", minHeight: "110px" }}>
+            
+            {/* 1. Background interactions spanning all rows */}
+            {week.map((d, di) => {
+              const iso = isoDate(d);
+              const holiday = HOLIDAYS[iso];
+              const isCurrentMonth = isSameMonth(d, currentDate);
+              const isTodayDay = isSameDay(d, today);
+              const isSelected = dragRangeStart && dragRangeEnd && d >= dragRangeStart && d <= dragRangeEnd;
+
+              let bgClass = "bg-white hover:bg-gray-50/60 transition-colors";
+              if (isSelected) bgClass = "bg-blue-100/60";
+              else if (isTodayDay) bgClass = "bg-blue-50/70";
+
+              return (
+                <div 
+                  key={`bg-${di}`}
+                  style={{ gridColumn: di + 1, gridRow: `1 / span ${rowCount + 2}` }}
+                  data-timestamp={d.getTime()}
+                  className={[`border-r border-gray-100 cursor-${isAdmin ? "pointer" : "default"}`, bgClass, !isCurrentMonth ? "opacity-30" : ""].join(" ")}
+                  onMouseDown={() => startDrag(d)}
+                  onMouseEnter={() => updateDrag(d)}
+                  onTouchStart={() => startDrag(d)}
+                />
+              );
+            })}
+
+            {/* 2. Date Numbers in Row 1 */}
+            {week.map((d, di) => {
+              const iso = isoDate(d);
+              const holiday = HOLIDAYS[iso];
+              const isCurrentMonth = isSameMonth(d, currentDate);
+              const isTodayDay = isSameDay(d, today);
+              const dayOfWeek = d.getDay();
+
+              let dateNumColor = "text-gray-800";
+              if (!isCurrentMonth) dateNumColor = "text-gray-300";
+              else if (holiday || dayOfWeek === 0) dateNumColor = "text-red-500";
+              else if (dayOfWeek === 6) dateNumColor = "text-blue-500";
+
+              return (
+                <div 
+                  key={`date-${di}`}
+                  style={{ gridColumn: di + 1, gridRow: 1 }}
+                  className="px-1.5 pt-1.5 pb-1 pointer-events-none flex items-start gap-1 h-[26px]"
+                >
+                  <span
+                    className={[
+                      "text-[13px] font-bold leading-none select-none",
+                      dateNumColor,
+                      isTodayDay
+                        ? "w-6 h-6 flex items-center justify-center bg-blue-600 rounded-full !text-white text-[12px] -mt-0.5"
+                        : "",
+                    ].join(" ")}
+                  >
+                    {format(d, "d")}
+                  </span>
+                  {holiday && (
+                    <span className="text-[9px] text-red-400 font-medium leading-none mt-0.5 truncate select-none">
+                      {holiday}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* 3. Event Overlays */}
+            {positionedEvents.map((pe) => {
+              return (
+                <div
+                   key={pe.event.id}
+                   style={{ 
+                     gridColumn: `${pe.spanStart + 1} / span ${pe.spanEnd - pe.spanStart + 1}`,
+                     gridRow: pe.row + 2 // Start below the date headers
+                   }}
+                   className="z-10 mb-1 pointer-events-none"
+                >
+                  <EventBlock pe={pe} isAdmin={isAdmin} onClick={onEventClick} />
+                </div>
+              );
+            })}
+
+            {/* 4. Bottom Spacer to ensure grid grows and padding */}
+            <div style={{ gridColumn: "1 / -1", gridRow: rowCount + 2, minHeight: "0.5rem", pointerEvents: "none" }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+};

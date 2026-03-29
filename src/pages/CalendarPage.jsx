@@ -69,6 +69,7 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState("right");
+  const [tooltipVertical, setTooltipVertical] = useState("bottom");
   const tooltipRef = useRef(null);
   const hasDetail = ev.memo || ev.time;
 
@@ -93,6 +94,12 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
         setTooltipPos("left");
       } else {
         setTooltipPos("right");
+      }
+      // If remaining space on the bottom is less than ~200px, open to the top
+      if (window.innerHeight - rect.bottom < 200) {
+        setTooltipVertical("top");
+      } else {
+        setTooltipVertical("bottom");
       }
     }
     action();
@@ -169,7 +176,7 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.1 }}
-            className={`absolute z-[10001] ${tooltipPos === "left" ? "right-[90%]" : "left-[90%]"} top-[-10px] w-52 bg-[#FFFFE1] border border-gray-400 p-3 shadow-xl rounded-sm pointer-events-none`}
+            className={`absolute z-[10001] ${tooltipPos === "left" ? "right-[90%]" : "left-[90%]"} ${tooltipVertical === "top" ? "bottom-[-10px]" : "top-[-10px]"} w-52 bg-[#FFFFE1] border border-gray-400 p-3 shadow-xl rounded-sm pointer-events-none`}
           >
             <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-yellow-200/50">
               <FileText size={11} className="text-yellow-700/60" />
@@ -181,13 +188,13 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
             {/* Pointer arrow */}
             {tooltipPos === "left" ? (
               <>
-                <div className="absolute top-[15px] -right-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-gray-400 border-b-[6px] border-b-transparent" />
-                <div className="absolute top-[15px] -right-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-[#FFFFE1] border-b-[6px] border-b-transparent" />
+                <div className={`absolute ${tooltipVertical === "top" ? "bottom-[15px]" : "top-[15px]"} -right-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-gray-400 border-b-[6px] border-b-transparent`} />
+                <div className={`absolute ${tooltipVertical === "top" ? "bottom-[15px]" : "top-[15px]"} -right-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-l-[6px] border-l-[#FFFFE1] border-b-[6px] border-b-transparent`} />
               </>
             ) : (
               <>
-                <div className="absolute top-[15px] -left-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-gray-400 border-b-[6px] border-b-transparent" />
-                <div className="absolute top-[15px] -left-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-[#FFFFE1] border-b-[6px] border-b-transparent" />
+                <div className={`absolute ${tooltipVertical === "top" ? "bottom-[15px]" : "top-[15px]"} -left-[6px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-gray-400 border-b-[6px] border-b-transparent`} />
+                <div className={`absolute ${tooltipVertical === "top" ? "bottom-[15px]" : "top-[15px]"} -left-[5px] w-0 h-0 border-t-[6px] border-t-transparent border-r-[6px] border-r-[#FFFFE1] border-b-[6px] border-b-transparent`} />
               </>
             )}
           </motion.div>
@@ -202,7 +209,7 @@ const EventItem = ({ ev, isAdmin, onClick }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className={`absolute z-[9000] ${tooltipPos === "left" ? "right-0" : "left-0"} top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3`}
+            className={`absolute z-[9000] ${tooltipPos === "left" ? "right-0" : "left-0"} ${tooltipVertical === "top" ? "bottom-full mb-1" : "top-full mt-1"} w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-3`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Popup header */}

@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import LoginModal from './LoginModal';
 import TitleBar from './TitleBar';
 import ResizeHandles from './ResizeHandles';
+import { useHeartbeat } from '../hooks/useHeartbeat';
+import ActiveUsersList from './ActiveUsersList';
 
 const NAV_LINKS = [
   { to: '/',            icon: CalendarIcon, label: '일정' },
@@ -16,16 +18,19 @@ const NAV_LINKS = [
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  const { isAdmin, isPartDistributor, logout } = useAuth();
+  const { isAdmin, isPartDistributor, isSuperAdmin, logout } = useAuth();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Initialize real-time heartbeat signaling
+  useHeartbeat();
 
   React.useEffect(() => {
     if (window.electronAPI) setIsElectron(true);
   }, []);
 
-  const hasAccess = isAdmin || isPartDistributor;
+  const hasAccess = isAdmin || isPartDistributor || isSuperAdmin;
 
   const handleAuthClick = () => {
     if (hasAccess) {
@@ -97,11 +102,15 @@ const Layout = ({ children }) => {
         className={clsx(
           'w-full max-w-[1600px] mx-auto px-2 md:px-4',
           isElectron ? 'pt-[80px]' : 'pt-[72px]',
-          'pb-6 min-h-screen'
+          'pb-6 min-h-screen',
+          isSuperAdmin && 'pb-40' // Add padding for super admin monitor panel
         )}
       >
         {children}
       </main>
+
+      {/* Super Admin Real-time Monitor */}
+      <ActiveUsersList />
     </div>
   );
 };
