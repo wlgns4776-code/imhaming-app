@@ -46,7 +46,7 @@ const ImageModal = ({ outfit, onClose }) => {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden"
       >
         {/* 닫기 */}
         <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center transition-colors">
