@@ -1,7 +1,7 @@
 {
   "name": "imhaming-moeum",
   "private": true,
-  "version": "1.0.10",
+  "version": "1.0.11",
   "repository": {
     "type": "git",
     "url": "https://github.com/wlgns4776-code/imhaming-app.git"
@@ -44,6 +44,7 @@
     "cross-env": "^10.1.0",
     "electron": "^40.6.0",
     "electron-builder": "^26.8.1",
+    "playwright": "^1.59.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "vite": "^6.1.0",

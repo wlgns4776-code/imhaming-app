@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calendar as CalendarIcon, Disc, Music, ListMusic, Lock, Unlock } from 'lucide-react';
+import { Calendar as CalendarIcon, Disc, Music, ListMusic, Gift, Lock, Unlock, Shirt } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from './LoginModal';
@@ -12,6 +12,8 @@ import ActiveUsersList from './ActiveUsersList';
 const NAV_LINKS = [
   { to: '/',            icon: CalendarIcon, label: '일정' },
   { to: '/roulette',   icon: Disc,         label: '업보' },
+  { to: '/shop',       icon: Gift,         label: '교환소' },
+  { to: '/outfits',    icon: Shirt,        label: '의상함' },
   { to: '/songs',      icon: Music,        label: '노래책' },
   { to: '/distributor',icon: ListMusic,    label: '파트분배' },
 ];

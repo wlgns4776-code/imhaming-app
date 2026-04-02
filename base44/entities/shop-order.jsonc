@@ -1,0 +1,29 @@
+{
+  "name": "ShopOrder",
+  "type": "object",
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "description": "User nickname"
+    },
+    "costume": {
+      "type": "string",
+      "description": "Requested costume or item description"
+    },
+    "type": {
+      "type": "string",
+      "description": "Exchange type (e.g. 코스튬 방셀)"
+    },
+    "pieces": {
+      "type": "integer",
+      "description": "Number of pieces used"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["waiting", "working", "done"],
+      "default": "waiting",
+      "description": "Order status"
+    }
+  },
+  "required": ["nickname", "costume", "type", "pieces"]
+}

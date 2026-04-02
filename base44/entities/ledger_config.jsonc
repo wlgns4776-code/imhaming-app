@@ -5,7 +5,12 @@
     "columns": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "List of column names for the ledger"
+      "description": "List of column names for the ledger (legacy)"
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Category definitions with type (A=cumulative, B=status) and fields"
     }
   }
 }

@@ -1,0 +1,35 @@
+{
+  "name": "ShopExchangeRate",
+  "type": "object",
+  "properties": {
+    "pieces": {
+      "type": "integer",
+      "description": "Number of roulette pieces required"
+    },
+    "reward": {
+      "type": "string",
+      "description": "Reward description"
+    },
+    "emoji": {
+      "type": "string",
+      "description": "Emoji icon for the card"
+    },
+    "colorFrom": {
+      "type": "string",
+      "description": "Gradient start color class"
+    },
+    "colorTo": {
+      "type": "string",
+      "description": "Gradient end color class"
+    },
+    "popular": {
+      "type": "boolean",
+      "description": "Whether this is a popular/best item"
+    },
+    "sortOrder": {
+      "type": "integer",
+      "description": "Display sort order"
+    }
+  },
+  "required": ["pieces", "reward"]
+}

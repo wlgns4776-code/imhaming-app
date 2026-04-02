@@ -7,6 +7,8 @@ const GlobalHeader = ({ title, centerExtra, rightExtra }) => {
   let displayTitle = title;
   if (!displayTitle) {
     if (location.pathname === '/roulette') displayTitle = '# 업보 목록';
+    else if (location.pathname === '/shop') displayTitle = '🎁 교환소';
+    else if (location.pathname === '/outfits') displayTitle = '👗 의상함';
     else if (location.pathname === '/songs') displayTitle = '🎵 노래책';
     else if (location.pathname === '/distributor') displayTitle = '🔀 파트 분배';
     else displayTitle = '임하밍 일정';

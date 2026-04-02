@@ -1,0 +1,28 @@
+{
+  "name": "Outfit",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "의상 이름"
+    },
+    "description": {
+      "type": "string",
+      "description": "설명 및 관련 태그 정보 (파이프(|) 구분)"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["ming", "bangcel"],
+      "default": "ming",
+      "description": "카테고리: 밍조각(ming) / 방셀(bangcel)"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "이미지 URL 목록"
+    }
+  },
+  "required": ["title", "category"]
+}
