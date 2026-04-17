@@ -77,7 +77,7 @@ const Layout = ({ children }) => {
                   )}
                 >
                   <Icon size={14} />
-                  {label}
+                  <span className="hidden sm:inline">{label}</span>
                 </Link>
               );
             })}
