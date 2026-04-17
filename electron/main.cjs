@@ -65,7 +65,8 @@ function createWindow() {
     frame: false, // Frameless window
     transparent: true, // Transparent background
     alwaysOnTop: false, // Optional: keep on top? Maybe let user decide. Default false for desktop widget feel.
-    skipTaskbar: true, // Hide from taskbar (User Request)
+    skipTaskbar: false, // Show in taskbar
+    icon: path.join(__dirname, '../assets/icon.ico'), // Taskbar icon
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

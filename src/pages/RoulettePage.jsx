@@ -18,6 +18,14 @@ const DEFAULT_CATEGORIES = [
     ],
   },
   {
+    key: 'ming',
+    label: '밍조각',
+    type: 'A',
+    fields: [
+      { key: '밍조각', label: '밍조각' }
+    ],
+  },
+  {
     key: 'costume',
     label: '코스튬 의뢰',
     type: 'B',
@@ -59,9 +67,12 @@ const LedgerPage = () => {
   const [newFormData, setNewFormData] = useState({});
   const [newColumn, setNewColumn] = useState('');
 
-  // 인라인 편집 (B타입)
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
+
+  // 카운트(A타입) 인라인 편집
+  const [editingCountCell, setEditingCountCell] = useState(null);
+  const [editCountValue, setEditCountValue] = useState('');
 
   /* ─── 파생 상태 ─── */
   const selectedCat = useMemo(
@@ -71,12 +82,19 @@ const LedgerPage = () => {
 
   const filteredUsers = useMemo(() => {
     if (!selectedCat) return [];
-    return allUsers.filter(u => {
+    let users = allUsers.filter(u => {
       if (!u.category) {
         const firstA = categories.find(c => c.type === 'A');
         return firstA && selectedKey === firstA.key;
       }
       return u.category === selectedKey;
+    });
+    
+    // 등록된 순서로 정렬 (생성 시간 기준)
+    return users.sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeA - timeB;
     });
   }, [allUsers, selectedKey, selectedCat, categories]);
 
@@ -89,14 +107,40 @@ const LedgerPage = () => {
           const cfg = configs[0];
           setConfigId(cfg.id);
           if (cfg.categories && cfg.categories.length > 0) {
-            setCategories(cfg.categories);
-            setSelectedKey(prev => prev || cfg.categories[0].key);
+            let cats = [...cfg.categories];
+            // 밍조각 탭이 없으면 자동 추가
+            if (!cats.find(c => c.key === 'ming')) {
+              cats.push({
+                key: 'ming',
+                label: '밍조각',
+                type: 'A',
+                fields: [{ key: '밍조각', label: '밍조각' }]
+              });
+              await base44.entities.LedgerConfig.update(cfg.id, { categories: cats });
+            }
+            // 탭 순서 정렬하기: 업보(1) -> 밍조각(2) -> 코스튬(3)
+            const order = { upbo: 1, ming: 2, costume: 3 };
+            cats.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
+
+            setCategories(cats);
+            setSelectedKey(prev => prev || cats[0].key);
           } else {
             const legacy = cfg.columns || ['노래', '퀵뷰(7일)'];
-            const migrated = [
+            let migrated = [
               { key: 'upbo', label: '업보 장부', type: 'A', fields: legacy.map(c => ({ key: c, label: c })) },
               ...DEFAULT_CATEGORIES.filter(c => c.type === 'B'),
             ];
+            if (!migrated.find(c => c.key === 'ming')) {
+              migrated.push({
+                key: 'ming',
+                label: '밍조각',
+                type: 'A',
+                fields: [{ key: '밍조각', label: '밍조각' }]
+              });
+            }
+            const order = { upbo: 1, ming: 2, costume: 3 };
+            migrated.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
+
             setCategories(migrated);
             setSelectedKey('upbo');
             await base44.entities.LedgerConfig.update(cfg.id, { categories: migrated, columns: legacy });
@@ -204,6 +248,31 @@ const LedgerPage = () => {
   const saveEdit = () => {
     if (editingCell) updateUserData(editingCell.rowId, editingCell.fieldKey, editValue);
     setEditingCell(null);
+  };
+
+  const startEditingCount = (rowId, fieldKey, val) => {
+    setEditingCountCell({ rowId, fieldKey });
+    setEditCountValue(String(val || 0));
+  };
+  
+  const saveEditCount = async () => {
+    if (editingCountCell) {
+      const val = parseInt(editCountValue);
+      if (!isNaN(val)) {
+        const user = allUsers.find(u => u.id === editingCountCell.rowId);
+        if (user) {
+          const next = Math.max(0, val);
+          const newCounts = { ...(user.counts || {}), [editingCountCell.fieldKey]: next };
+          setAllUsers(prev => prev.map(u => (u.id === user.id ? { ...u, counts: newCounts } : u)));
+          try {
+            await base44.entities.LedgerUser.update(user.id, { counts: newCounts });
+          } catch (err) {
+            console.error('Failed to update count:', err);
+          }
+        }
+      }
+    }
+    setEditingCountCell(null);
   };
 
   /* ─── A타입: 컬럼 관리 ─── */
@@ -440,9 +509,25 @@ const LedgerPage = () => {
                               <Minus size={12} />
                             </button>
                           )}
-                          <span className={clsx('font-bold text-lg min-w-[20px]', (user.counts?.[field.key] || 0) > 0 ? 'text-blue-600' : 'text-gray-300')}>
-                            {user.counts?.[field.key] || ''}
-                          </span>
+                          {editingCountCell?.rowId === user.id && editingCountCell?.fieldKey === field.key ? (
+                            <input
+                              autoFocus
+                              value={editCountValue}
+                              onChange={e => setEditCountValue(e.target.value)}
+                              onBlur={saveEditCount}
+                              onKeyDown={e => { if (e.key === 'Enter') saveEditCount(); if (e.key === 'Escape') setEditingCountCell(null); }}
+                              className="w-12 px-1 py-0 text-center font-bold text-lg border border-blue-300 rounded focus:ring-2 focus:ring-blue-200 outline-none"
+                              type="number"
+                              min="0"
+                            />
+                          ) : (
+                            <span 
+                              onClick={() => isAdmin && startEditingCount(user.id, field.key, user.counts?.[field.key])}
+                              className={clsx('font-bold text-lg min-w-[20px]', isAdmin && 'cursor-pointer hover:bg-gray-100 rounded px-1', (user.counts?.[field.key] || 0) > 0 ? 'text-blue-600' : 'text-gray-300')}
+                            >
+                              {user.counts?.[field.key] || '0'}
+                            </span>
+                          )}
                           {isAdmin && (
                             <button onClick={() => updateCount(user.id, field.key, 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100">
                               <Plus size={12} />
