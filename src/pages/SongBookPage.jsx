@@ -42,7 +42,8 @@ const SongBookPage = () => {
     key: '', 
     proficiency: '가능', // Default
     conditionCheck: false, 
-    remarks: '' 
+    remarks: '',
+    coverUrl: ''
   }); 
   const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -100,6 +101,23 @@ const SongBookPage = () => {
     if (!newSong.title) return;
 
     try {
+        let fetchedCover = newSong.coverUrl;
+        if (!fetchedCover) {
+            try {
+                const query = encodeURIComponent(`${newSong.artist} ${newSong.title}`);
+                const targetUrl = `https://music.bugs.co.kr/search/track?q=${query}`;
+                const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`;
+                const res = await fetch(proxyUrl);
+                const text = await res.text();
+                const match = text.match(/https:\/\/image\.bugsm\.co\.kr\/album\/images\/\d+\/\d+\/\d+\.jpg/);
+                if (match && match[0]) {
+                    fetchedCover = match[0].replace('/50/', '/500/');
+                }
+            } catch (err) {
+                console.error("Cover fetch error", err);
+            }
+        }
+
         const songData = {
             title: newSong.title,
             artist: newSong.artist,
@@ -108,7 +126,8 @@ const SongBookPage = () => {
             tags: typeof newSong.tags === 'string' ? newSong.tags.split(',').map(t => t.trim()).filter(Boolean) : newSong.tags,
             proficiency: newSong.proficiency,
             conditionCheck: newSong.conditionCheck,
-            remarks: newSong.remarks
+            remarks: newSong.remarks,
+            coverUrl: fetchedCover
         };
 
         if (isEditing && editId) {
@@ -135,7 +154,8 @@ const SongBookPage = () => {
             key: '', 
             proficiency: '가능', 
             conditionCheck: false, 
-            remarks: ''
+            remarks: '',
+            coverUrl: ''
         });
         setIsAdding(false);
     } catch (error) {
@@ -153,7 +173,8 @@ const SongBookPage = () => {
       tags: song.tags.join(', '),
       proficiency: song.proficiency || '가능',
       conditionCheck: song.conditionCheck || false,
-      remarks: song.remarks || ''
+      remarks: song.remarks || '',
+      coverUrl: song.coverUrl || ''
     });
     setEditId(song.id);
     setIsEditing(true);
@@ -172,6 +193,7 @@ const SongBookPage = () => {
         proficiency: '가능', 
         conditionCheck: false, 
         remarks: '',
+        coverUrl: ''
     });
   };
 
@@ -383,13 +405,22 @@ const SongBookPage = () => {
             >
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg text-gray-900 leading-tight break-words">
-                      {song.title}
-                    </h3>
-                    <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                      <Mic2 size={12} /> {song.artist}
-                    </p>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-14 h-14 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner border border-gray-200/60">
+                      {song.coverUrl ? (
+                        <img src={song.coverUrl} alt="cover" className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                      ) : (
+                        <Music className="text-gray-300" size={24} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-gray-900 leading-tight break-words">
+                        {song.title}
+                      </h3>
+                      <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
+                        <Mic2 size={12} /> {song.artist}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     {song.key && (

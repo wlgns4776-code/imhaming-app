@@ -44,6 +44,11 @@
       "type": "string",
       "description": "YouTube URL for MR/Instrumental",
       "nullable": true
+    },
+    "coverUrl": {
+      "type": "string",
+      "description": "Album cover URL",
+      "nullable": true
     }
   },
   "required": ["title"]
