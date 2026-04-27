@@ -681,10 +681,10 @@ const CalendarPage = () => {
       <div className="bg-white rounded-3xl shadow-md border border-gray-100 flex flex-col flex-1 overflow-hidden relative">
 
         {/* ── Toolbar ──────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 gap-2 flex-wrap">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 gap-4 flex-wrap sm:flex-nowrap">
 
           {/* Left: Title */}
-          <div className="flex flex-col">
+          <div className="flex flex-col flex-1 items-start">
             <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-none">
               임하밍 일정
             </h2>
@@ -692,7 +692,7 @@ const CalendarPage = () => {
           </div>
 
           {/* Center: Today + Nav */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-shrink-0">
             <button
               onClick={goToday}
               className="px-3 py-1.5 text-sm font-semibold border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
@@ -713,7 +713,7 @@ const CalendarPage = () => {
           </div>
 
           {/* Right: Memo (admin only) */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center justify-end gap-2">
             {/* Memo – admin only */}
             {isAdmin && (
               <button
