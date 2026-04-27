@@ -712,23 +712,8 @@ const CalendarPage = () => {
             </div>
           </div>
 
-          {/* Right: View toggles + Memo (admin only) */}
+          {/* Right: Memo (admin only) */}
           <div className="flex items-center gap-2">
-            <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-              {["month", "week", "day"].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={[
-                    "px-3 py-1.5 text-sm font-semibold transition-colors",
-                    view === v ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50",
-                  ].join(" ")}
-                >
-                  {VIEW_LABELS[v]}
-                </button>
-              ))}
-            </div>
-
             {/* Memo – admin only */}
             {isAdmin && (
               <button
