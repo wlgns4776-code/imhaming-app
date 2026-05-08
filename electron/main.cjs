@@ -1,12 +1,9 @@
 const { app, BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
-const express = require('express');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
-let server;
-let PORT = 0; // Dynamic port to avoid conflicts
 
 function getStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -34,41 +31,29 @@ function saveState(bounds) {
   }
 }
 
-function startServer() {
-  return new Promise((resolve, reject) => {
-    const app = express();
-    app.use(express.static(path.join(__dirname, '../dist-build')));
-    
-    // Handle SPA routing: redirect all 404s to index.html
-    app.use((req, res) => {
-      res.sendFile(path.join(__dirname, '../dist-build/index.html'));
-    });
-
-    server = app.listen(0, '127.0.0.1', () => {
-      PORT = server.address().port;
-      console.log(`Local server running on http://127.0.0.1:${PORT}`);
-      resolve();
-    });
-
-    server.on('error', (err) => {
-      console.error('Express server error:', err);
-      reject(err);
-    });
-  });
+function getDistPath() {
+  // When using asarUnpack, files are extracted to app.asar.unpacked/
+  // In dev mode, __dirname is just the electron/ folder in the project root
+  const normalPath = path.join(__dirname, '../dist-build');
+  const unpackedPath = normalPath.replace('app.asar', 'app.asar.unpacked');
+  
+  // Prefer unpacked path (production), fall back to normal path (dev)
+  if (fs.existsSync(unpackedPath)) {
+    return unpackedPath;
+  }
+  return normalPath;
 }
 
-async function createWindow() {
-  // Start local server if in production
-  if (!process.env.ELECTRON_START_URL) {
-    try {
-      await startServer();
-    } catch (e) {
-      console.error('Failed to start server:', e);
-    }
-  }
-
+function createWindow() {
   const state = loadState();
   
+  // Resolve icon path
+  let iconPath;
+  const assetIconPath = path.join(__dirname, '../assets/icon.ico');
+  if (fs.existsSync(assetIconPath)) {
+    iconPath = assetIconPath;
+  }
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: state.width,
@@ -77,9 +62,9 @@ async function createWindow() {
     y: state.y,
     frame: false, // Frameless window
     transparent: true, // Transparent background
-    alwaysOnTop: false, // Optional: keep on top? Maybe let user decide. Default false for desktop widget feel.
+    alwaysOnTop: false,
     skipTaskbar: false, // Show in taskbar
-    icon: path.join(__dirname, '../assets/icon.ico'), // Taskbar icon
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -87,9 +72,18 @@ async function createWindow() {
     }
   });
 
-  // Load the index.html of the app.
-  const startUrl = process.env.ELECTRON_START_URL || `http://127.0.0.1:${PORT}`;
-  mainWindow.loadURL(startUrl);
+  // Load the app
+  if (process.env.ELECTRON_START_URL) {
+    // Dev mode: load from Vite dev server
+    mainWindow.loadURL(process.env.ELECTRON_START_URL);
+  } else {
+    // Production: load index.html directly from dist-build
+    const distPath = getDistPath();
+    const indexPath = path.join(distPath, 'index.html');
+    console.log('Loading from:', indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    mainWindow.loadFile(indexPath);
+  }
 
   // Save state on close
   mainWindow.on('close', () => {
@@ -111,9 +105,6 @@ async function createWindow() {
 
   mainWindow.on('closed', function () {
     mainWindow = null;
-    if (server) {
-      server.close();
-    }
   });
 }
 
