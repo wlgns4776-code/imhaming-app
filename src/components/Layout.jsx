@@ -57,7 +57,7 @@ const Layout = ({ children }) => {
           'flex items-center gap-2',
           'px-2 md:px-4',
           'bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100',
-          isElectron ? 'top-8 h-12' : 'top-0 h-14'
+          isElectron ? 'top-10 h-12' : 'top-0 h-14'
         )}
       >
         {/* Tab Nav – horizontally scrollable on mobile */}
@@ -100,7 +100,7 @@ const Layout = ({ children }) => {
       <main
         className={clsx(
           'w-full max-w-[1600px] mx-auto px-2 md:px-4',
-          isElectron ? 'pt-[80px]' : 'pt-[72px]',
+          isElectron ? 'pt-[88px]' : 'pt-[72px]',
           'pb-6 min-h-screen',
           isSuperAdmin && 'pb-40' // Add padding for super admin monitor panel
         )}
