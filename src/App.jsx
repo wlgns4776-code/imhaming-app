@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import CalendarPage from './pages/CalendarPage';
 import RoulettePage from './pages/RoulettePage';
@@ -10,6 +10,11 @@ import OutfitPage from './pages/OutfitPage';
 
 
 import { AuthProvider } from './context/AuthContext';
+
+// Electron uses file:// protocol with loadFile, which requires HashRouter
+// Web version uses BrowserRouter for clean URLs
+const isElectron = !!(window.electronAPI || window.location.protocol === 'file:');
+const Router = isElectron ? HashRouter : BrowserRouter;
 
 function App() {
   return (
