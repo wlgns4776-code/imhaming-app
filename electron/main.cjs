@@ -6,7 +6,7 @@ const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let server;
-const PORT = 3100; // Fixed port for local server (3100 to avoid conflict with other apps)
+let PORT = 0; // Dynamic port to avoid conflicts
 
 function getStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -35,23 +35,36 @@ function saveState(bounds) {
 }
 
 function startServer() {
-  const app = express();
-  app.use(express.static(path.join(__dirname, '../dist-build')));
-  
-  // Handle SPA routing: redirect all 404s to index.html
-  app.use((req, res) => {
-    res.sendFile(path.join(__dirname, '../dist-build/index.html'));
-  });
+  return new Promise((resolve, reject) => {
+    const app = express();
+    app.use(express.static(path.join(__dirname, '../dist-build')));
+    
+    // Handle SPA routing: redirect all 404s to index.html
+    app.use((req, res) => {
+      res.sendFile(path.join(__dirname, '../dist-build/index.html'));
+    });
 
-  server = app.listen(PORT, () => {
-    console.log(`Local server running on http://localhost:${PORT}`);
+    server = app.listen(0, '127.0.0.1', () => {
+      PORT = server.address().port;
+      console.log(`Local server running on http://127.0.0.1:${PORT}`);
+      resolve();
+    });
+
+    server.on('error', (err) => {
+      console.error('Express server error:', err);
+      reject(err);
+    });
   });
 }
 
-function createWindow() {
+async function createWindow() {
   // Start local server if in production
   if (!process.env.ELECTRON_START_URL) {
-    startServer();
+    try {
+      await startServer();
+    } catch (e) {
+      console.error('Failed to start server:', e);
+    }
   }
 
   const state = loadState();
@@ -75,7 +88,7 @@ function createWindow() {
   });
 
   // Load the index.html of the app.
-  const startUrl = process.env.ELECTRON_START_URL || `http://localhost:${PORT}`;
+  const startUrl = process.env.ELECTRON_START_URL || `http://127.0.0.1:${PORT}`;
   mainWindow.loadURL(startUrl);
 
   // Save state on close
