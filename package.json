@@ -1,7 +1,7 @@
 {
-  "name": "imhaming-moeum",
+  "name": "imhaming-moeum-v2",
   "private": true,
-  "version": "1.0.17",
+  "version": "1.0.18",
   "repository": {
     "type": "git",
     "url": "https://github.com/wlgns4776-code/imhaming-app.git"
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "base44:login": "base44 login",
     "base44:push": "base44 entities push",
-    "base44:deploy": "npm run build && base44 deploy",
+    "base44:deploy": "npm run build && base44 deploy --yes",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "electron:build": "vite build && electron-builder"
   },
@@ -23,6 +23,7 @@
     "@azure/msal-react": "^5.0.4",
     "@base44/sdk": "^0.8.3",
     "@floating-ui/react": "^0.27.19",
+    "@supabase/supabase-js": "^2.105.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "electron-updater": "^6.8.3",
@@ -51,6 +52,8 @@
     "wait-on": "^9.0.4"
   },
   "build": {
+    "appId": "com.imhaming.moeum.v2",
+    "productName": "임하밍 모음",
     "win": {
       "target": "nsis"
     },

@@ -8,22 +8,29 @@ import PartDistributorPage from './pages/PartDistributorPage';
 import ShopPage from './pages/ShopPage';
 import OutfitPage from './pages/OutfitPage';
 
+
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<CalendarPage />} />
-            <Route path="/roulette" element={<RoulettePage />} />
-            <Route path="/songs" element={<SongBookPage />} />
-            <Route path="/distributor" element={<PartDistributorPage />} />
-            <Route path="/shop" element={<ShopPage />} />
-            <Route path="/outfits" element={<OutfitPage />} />
-          </Routes>
-        </Layout>
+        <Routes>
+
+          <Route path="/*" element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<CalendarPage />} />
+                <Route path="/roulette" element={<RoulettePage />} />
+                <Route path="/songs" element={<SongBookPage />} />
+                <Route path="/distributor" element={<PartDistributorPage />} />
+                <Route path="/shop" element={<ShopPage />} />
+                <Route path="/outfits" element={<OutfitPage />} />
+
+              </Routes>
+            </Layout>
+          } />
+        </Routes>
       </Router>
     </AuthProvider>
   );

@@ -253,7 +253,8 @@ const OutfitPage = () => {
   };
 
   const handleImageUpload = async (e) => {
-    const files = e.target.files;
+    const target = e.target;
+    const files = target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
@@ -267,11 +268,11 @@ const OutfitPage = () => {
       }
       setFormData(prev => ({ ...prev, images: [...prev.images, ...newUrls] }));
     } catch (err) {
-      alert('이미지 업로드에 실패했습니다.');
+      alert(`이미지 업로드에 실패했습니다. 에러: ${err.message || err}`);
       console.error(err);
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // Reset input
+      target.value = ''; // Reset input
     }
   };
 
@@ -428,6 +429,45 @@ const OutfitPage = () => {
                       onChange={handleImageUpload}
                     />
                   </label>
+                  
+                  <div className="flex flex-col gap-1 mt-1 border-t border-gray-100 pt-3">
+                    <label className="text-[11px] font-bold text-gray-500 pl-1 flex items-center gap-1">
+                      <Star size={10} className="text-orange-400" />
+                      업로드 용량 제한 시, 이미지 링크(URL) 직접 추가
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        id="imageUrlInput"
+                        placeholder="디스코드 등에서 이미지 주소 복사 후 붙여넣기 (https://...)" 
+                        className="input-field flex-1 text-sm py-1.5 px-3 bg-gray-50 border-gray-200"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = e.target.value.trim();
+                            if (val) {
+                              setFormData(prev => ({ ...prev, images: [...prev.images, val] }));
+                              e.target.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const input = document.getElementById('imageUrlInput');
+                          const val = input.value.trim();
+                          if (val) {
+                            setFormData(prev => ({ ...prev, images: [...prev.images, val] }));
+                            input.value = '';
+                          }
+                        }}
+                        className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 rounded-xl font-bold text-xs transition-colors whitespace-nowrap shadow-sm"
+                      >
+                        추가
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

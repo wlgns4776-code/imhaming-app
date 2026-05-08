@@ -18,6 +18,14 @@ const DEFAULT_CATEGORIES = [
     ],
   },
   {
+    key: 'picta_roulette',
+    label: '픽크타 룰렛',
+    type: 'A',
+    fields: [
+      { key: '룰렛', label: '룰렛' }
+    ],
+  },
+  {
     key: 'ming',
     label: '밍조각',
     type: 'A',
@@ -41,6 +49,7 @@ const STATUS_BADGE = {
   '준완': 'bg-blue-50 text-blue-600 border-blue-200',
   '완료': 'bg-gray-100 text-gray-400 border-gray-200',
 };
+
 
 const isRowCompleted = (user, category) => {
   if (!category || category.type !== 'B') return false;
@@ -73,6 +82,7 @@ const LedgerPage = () => {
   // 카운트(A타입) 인라인 편집
   const [editingCountCell, setEditingCountCell] = useState(null);
   const [editCountValue, setEditCountValue] = useState('');
+
 
   /* ─── 파생 상태 ─── */
   const selectedCat = useMemo(
@@ -107,19 +117,25 @@ const LedgerPage = () => {
           const cfg = configs[0];
           setConfigId(cfg.id);
           if (cfg.categories && cfg.categories.length > 0) {
-            let cats = [...cfg.categories];
-            // 밍조각 탭이 없으면 자동 추가
-            if (!cats.find(c => c.key === 'ming')) {
-              cats.push({
-                key: 'ming',
-                label: '밍조각',
-                type: 'A',
-                fields: [{ key: '밍조각', label: '밍조각' }]
-              });
-              await base44.entities.LedgerConfig.update(cfg.id, { categories: cats });
+            let cats = [...cfg.categories].filter(c => c.key !== 'picta_confirm'); // Remove picta_confirm
+            // 없는 탭 자동 추가
+            const autoTabs = [
+              { key: 'picta_roulette', label: '픽크타 룰렛', type: 'A', fields: [{ key: '룰렛', label: '룰렛' }] },
+              { key: 'ming', label: '밍조각', type: 'A', fields: [{ key: '밍조각', label: '밍조각' }] },
+            ];
+            let needsUpdate = false;
+            for (const tab of autoTabs) {
+              if (!cats.find(c => c.key === tab.key)) { cats.push(tab); needsUpdate = true; }
             }
-            // 탭 순서 정렬하기: 업보(1) -> 밍조각(2) -> 코스튬(3)
-            const order = { upbo: 1, ming: 2, costume: 3 };
+            // 기존 picta_roulette가 'roulette' 타입이면 'A' 타입으로 수정
+            const pr = cats.find(c => c.key === 'picta_roulette');
+            if (pr && pr.type !== 'A') {
+              pr.type = 'A';
+              if (!pr.fields || pr.fields.length === 0) pr.fields = [{ key: '룰렛', label: '룰렛' }];
+              needsUpdate = true;
+            }
+            if (needsUpdate) await base44.entities.LedgerConfig.update(cfg.id, { categories: cats });
+            const order = { upbo: 1, picta_roulette: 3, ming: 4, costume: 5 };
             cats.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
 
             setCategories(cats);
@@ -130,15 +146,15 @@ const LedgerPage = () => {
               { key: 'upbo', label: '업보 장부', type: 'A', fields: legacy.map(c => ({ key: c, label: c })) },
               ...DEFAULT_CATEGORIES.filter(c => c.type === 'B'),
             ];
-            if (!migrated.find(c => c.key === 'ming')) {
-              migrated.push({
-                key: 'ming',
-                label: '밍조각',
-                type: 'A',
-                fields: [{ key: '밍조각', label: '밍조각' }]
-              });
+            const autoTabs2 = [
+              { key: 'picta_roulette', label: '픽크타 룰렛', type: 'A', fields: [{ key: '룰렛', label: '룰렛' }] },
+              { key: 'ming', label: '밍조각', type: 'A', fields: [{ key: '밍조각', label: '밍조각' }] },
+            ];
+            for (const tab of autoTabs2) {
+              if (!migrated.find(c => c.key === tab.key)) migrated.push(tab);
             }
-            const order = { upbo: 1, ming: 2, costume: 3 };
+            migrated = migrated.filter(c => c.key !== 'picta_confirm');
+            const order = { upbo: 1, picta_roulette: 3, ming: 4, costume: 5 };
             migrated.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
 
             setCategories(migrated);
@@ -460,6 +476,7 @@ const LedgerPage = () => {
           </motion.form>
         )}
       </AnimatePresence>
+
 
       {/* ── 테이블 ── */}
       <div className="bg-white/60 backdrop-blur-md rounded-3xl border border-white/40 shadow-sm overflow-hidden flex-1 overflow-y-auto">

@@ -6,7 +6,7 @@ const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
 let server;
-const PORT = 3000; // Fixed port for local server
+const PORT = 3100; // Fixed port for local server (3100 to avoid conflict with other apps)
 
 function getStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');

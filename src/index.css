@@ -23,6 +23,13 @@ body {
   overflow-x: hidden;
 }
 
+/* Overlay Mode for OBS */
+body.overlay-mode, body.overlay-mode #root, body.overlay-mode .vibe-vignette {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 /* Vignette Effect */
 .vibe-vignette {
   position: fixed;

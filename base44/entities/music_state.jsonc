@@ -1,0 +1,23 @@
+{
+  "name": "MusicState",
+  "type": "object",
+  "properties": {
+    "track": {
+      "type": "string",
+      "description": "Currently playing track object (JSON stringified)"
+    },
+    "lyrics": {
+      "type": "string",
+      "description": "Lyrics array (JSON stringified)"
+    },
+    "currentLyricIndex": {
+      "type": "number",
+      "default": -1
+    },
+    "isPlaying": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": []
+}
