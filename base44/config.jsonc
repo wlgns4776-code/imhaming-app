@@ -3,7 +3,7 @@
 // Full-stack template with backend and client configuration.
 
 {
-  "name": "임하밍 모음",
+  "name": "임하밍 아카이브",
 
   // Site/hosting configuration for the client application
   // Docs: https://docs.base44.com/configuration/hosting
