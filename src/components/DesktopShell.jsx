@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle, Download, Menu, Minus, Monitor, RefreshCw, Smartphone, Tablet, X } from 'lucide-react';
 
 const APP_NAME = '임하밍 아카이브';
+const APP_ICON_SRC = new URL('app-icon.png', window.location.href).toString();
 
 export default function DesktopShell({ children }) {
   const [isElectron, setIsElectron] = useState(false);
@@ -63,7 +64,7 @@ export default function DesktopShell({ children }) {
     <>
       <header className="desktop-titlebar">
         <div className="desktop-drag-region">
-          <img className="desktop-app-icon" src="/app-icon.png" alt="" />
+          <img className="desktop-app-icon" src={APP_ICON_SRC} alt="" />
           <span className="desktop-app-name">{APP_NAME}</span>
           <UpdateIndicator status={updateStatus} progress={progress} />
         </div>
