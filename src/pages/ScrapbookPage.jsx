@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '../api/base44Client';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from '../components/LoginModal';
-import CalendarPage from './CalendarPage';
-import SongBookPage from './SongBookPage';
-import RoulettePage from './RoulettePage';
+import { Pencil, Trash2, X } from 'lucide-react';
 import '../scrapbook.css';
 
 const navItems = [
@@ -24,11 +22,15 @@ const stationUrl = 'https://www.sooplive.com/station/imha22';
 const stationBoardUrl = `${stationUrl}/board`;
 const noticeBoardNo = 90076414;
 const soopBoardApiUrl = `https://api-channel.sooplive.com/v1.1/channel/${stationId}/board?perPage=20&page=1`;
-const adminPanelTitles = {
-  schedule: '일정 관리',
-  songs: '노래책 관리',
-  karma: '업보 관리',
-};
+const eventColors = ['#ff8fc4', '#8edff0', '#ffe477', '#d7f276', '#cbb7ff', '#ff965b', '#5bc4ff', '#83e05a'];
+const songProficiencyOptions = ['가능', '보류', '완료'];
+const karmaCategoryOptions = [
+  { value: 'upbo', label: '업보' },
+  { value: 'ming', label: '밍조각' },
+  { value: 'costume', label: '코스튬' },
+  { value: 'picta_roulette', label: '룰렛' },
+  { value: 'picta_confirm', label: '확정' },
+];
 
 function toKstDateKey(value) {
   const date = new Date(value);
@@ -160,6 +162,45 @@ function normalizeSong(item) {
   };
 }
 
+function emptySongDraft() {
+  return {
+    id: '',
+    title: '',
+    artist: '',
+    key: '',
+    tags: [],
+    proficiency: '보류',
+    conditionCheck: false,
+    remarks: '',
+  };
+}
+
+function emptyKarmaDraft() {
+  return {
+    nickname: '',
+    userId: '',
+    category: 'upbo',
+    itemName: '',
+    itemValue: '',
+  };
+}
+
+function defaultKarmaItemName(category) {
+  return karmaCategoryOptions.find((item) => item.value === category)?.label || '업보';
+}
+
+function isCountValue(value) {
+  const text = String(value ?? '').trim();
+  return text === '' || !Number.isNaN(Number(text));
+}
+
+function eventDatePayload(dateKey) {
+  return {
+    start: `${dateKey}T00:00:00+09:00`,
+    end: `${dateKey}T23:59:59+09:00`,
+  };
+}
+
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== 'string') return [];
@@ -288,7 +329,14 @@ export default function ScrapbookPage() {
   const [partCopied, setPartCopied] = useState(false);
   const [latestNotice, setLatestNotice] = useState(null);
   const [noticeLoadFailed, setNoticeLoadFailed] = useState(false);
-  const [adminPanel, setAdminPanel] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [editingSong, setEditingSong] = useState(null);
+  const [newKarmaEntry, setNewKarmaEntry] = useState(null);
+  const [editingKarmaEntry, setEditingKarmaEntry] = useState(null);
+  const [isKarmaEditMode, setIsKarmaEditMode] = useState(false);
+  const [karmaDrafts, setKarmaDrafts] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   useEffect(() => {
     let ignore = false;
@@ -389,6 +437,20 @@ export default function ScrapbookPage() {
   const noticeSummary = latestNotice?.summary || (noticeLoadFailed ? '공지 게시판에서 최신 공지를 확인해 주세요.' : '임하밍 방송국 최신 공지를 불러오고 있어요.');
   const noticeDate = latestNotice?.date || new Date().toLocaleDateString('ko-KR');
   const noticeUrl = latestNotice?.url || stationBoardUrl;
+  const karmaEditRows = useMemo(() => visibleKarma.flatMap((user) => karmaItems(user).map((item) => {
+    const key = `${user.id}:${item.name}`;
+    return {
+      key,
+      user,
+      item,
+      draft: karmaDrafts[key] || {
+        nickname: user.nickname || '',
+        userId: user.userId || '',
+        itemName: item.name,
+        itemValue: item.value,
+      },
+    };
+  })), [karmaDrafts, visibleKarma]);
 
   function saveHeroImage(file) {
     const reader = new FileReader();
@@ -445,11 +507,231 @@ export default function ScrapbookPage() {
     setPartAssignments(next);
   }
 
-  function renderAdminPanel() {
-    if (adminPanel === 'schedule') return <CalendarPage />;
-    if (adminPanel === 'songs') return <SongBookPage />;
-    if (adminPanel === 'karma') return <RoulettePage />;
-    return null;
+  function openEventEditor(dateKey, event = null) {
+    setEditError('');
+    setEditingEvent(event ? {
+      id: event.id,
+      date: event.date,
+      title: event.title,
+      time: event.time || '',
+      memo: event.location || '',
+      color: event.color || eventColors[0],
+    } : {
+      id: '',
+      date: dateKey || toDateKey(today),
+      title: '',
+      time: '',
+      memo: '',
+      color: eventColors[0],
+    });
+  }
+
+  async function saveEvent() {
+    if (!editingEvent?.title?.trim()) return;
+    setIsSaving(true);
+    setEditError('');
+    try {
+      const payload = {
+        title: editingEvent.title.trim(),
+        time: editingEvent.time.trim(),
+        memo: editingEvent.memo.trim(),
+        color: editingEvent.color || eventColors[0],
+        ...eventDatePayload(editingEvent.date),
+      };
+      if (editingEvent.id) {
+        const updated = await base44.entities.CalendarEvent.update(editingEvent.id, payload);
+        setSchedules((items) => items.map((item) => (item.id === editingEvent.id ? normalizeEvent(updated) : item))
+          .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+      } else {
+        const created = await base44.entities.CalendarEvent.create(payload);
+        setSchedules((items) => [...items, normalizeEvent(created)]
+          .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+      }
+      setEditingEvent(null);
+    } catch (error) {
+      console.error('Failed to save event:', error);
+      setEditError('일정을 저장하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteEvent(event) {
+    if (!event?.id || !window.confirm('이 일정을 삭제할까요?')) return;
+    setIsSaving(true);
+    try {
+      await base44.entities.CalendarEvent.delete(event.id);
+      setSchedules((items) => items.filter((item) => item.id !== event.id));
+      setEditingEvent(null);
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      setEditError('일정을 삭제하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function openSongEditor(song = null) {
+    setEditError('');
+    setEditingSong(song ? {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      key: song.key,
+      tags: Array.isArray(song.tags) ? song.tags : [],
+      proficiency: song.proficiency || '보류',
+      conditionCheck: Boolean(song.conditionCheck),
+      remarks: song.remarks || '',
+    } : emptySongDraft());
+  }
+
+  async function saveSong() {
+    if (!editingSong?.title?.trim()) return;
+    setIsSaving(true);
+    setEditError('');
+    try {
+      const payload = {
+        title: editingSong.title.trim(),
+        artist: editingSong.artist.trim(),
+        key: editingSong.key.trim(),
+        tags: editingSong.tags,
+        proficiency: editingSong.proficiency,
+        conditionCheck: Boolean(editingSong.conditionCheck),
+        remarks: editingSong.remarks.trim(),
+      };
+      if (editingSong.id) {
+        const updated = await base44.entities.Song.update(editingSong.id, payload);
+        setSongs((items) => items.map((song) => (song.id === editingSong.id ? normalizeSong({ ...song, ...updated, ...payload }) : song))
+          .sort((a, b) => a.title.localeCompare(b.title, 'ko')));
+      } else {
+        const created = await base44.entities.Song.create({ ...payload, lyrics: '' });
+        setSongs((items) => [...items, normalizeSong({ ...created, ...payload })]
+          .sort((a, b) => a.title.localeCompare(b.title, 'ko')));
+      }
+      setEditingSong(null);
+    } catch (error) {
+      console.error('Failed to save song:', error);
+      setEditError('노래를 저장하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteSong(song) {
+    if (!song?.id || !window.confirm(`"${song.title}" 노래를 삭제할까요?`)) return;
+    setIsSaving(true);
+    try {
+      await base44.entities.Song.delete(song.id);
+      setSongs((items) => items.filter((item) => item.id !== song.id));
+    } catch (error) {
+      console.error('Failed to delete song:', error);
+      setEditError('노래를 삭제하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function mergeKarmaPayload(user, draft, previousName = '') {
+    const itemName = (draft.itemName || previousName || defaultKarmaItemName(draft.category)).trim();
+    const itemValue = String(draft.itemValue || '1').trim();
+    const counts = { ...(user?.counts || {}) };
+    const data = { ...(user?.data || {}) };
+    if (previousName && previousName !== itemName) {
+      delete counts[previousName];
+      delete data[previousName];
+    }
+    if (draft.category === 'costume' || !isCountValue(itemValue)) {
+      delete counts[itemName];
+      data[itemName] = itemValue || '완료';
+    } else {
+      delete data[itemName];
+      counts[itemName] = Number(itemValue || 1);
+    }
+    return { itemName, counts, data };
+  }
+
+  async function saveNewKarma() {
+    if (!newKarmaEntry?.nickname?.trim()) return;
+    setIsSaving(true);
+    setEditError('');
+    try {
+      const draft = {
+        ...newKarmaEntry,
+        nickname: newKarmaEntry.nickname.trim(),
+        userId: newKarmaEntry.userId.trim(),
+      };
+      const existing = karmaUsers.find((user) => (
+        draft.userId && user.userId?.toLowerCase() === draft.userId.toLowerCase()
+      ) || user.nickname === draft.nickname);
+      const merged = mergeKarmaPayload(existing, draft);
+      const payload = {
+        nickname: draft.nickname,
+        userId: draft.userId,
+        category: draft.category,
+        counts: merged.counts,
+        data: merged.data,
+      };
+      const saved = existing
+        ? await base44.entities.LedgerUser.update(existing.id, payload)
+        : await base44.entities.LedgerUser.create(payload);
+      setKarmaUsers((items) => normalizeKarmaUsers(existing
+        ? items.map((user) => (user.id === existing.id ? { ...user, ...saved, ...payload } : user))
+        : [...items, { ...saved, ...payload }]));
+      setNewKarmaEntry(null);
+    } catch (error) {
+      console.error('Failed to save karma:', error);
+      setEditError('업보를 저장하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function saveKarmaEdit(draft, user, previousName) {
+    if (!draft?.nickname?.trim() || !draft?.itemName?.trim()) return;
+    setIsSaving(true);
+    setEditError('');
+    try {
+      const merged = mergeKarmaPayload(user, draft, previousName);
+      const payload = {
+        nickname: draft.nickname.trim(),
+        userId: draft.userId.trim(),
+        category: user.category || 'upbo',
+        counts: merged.counts,
+        data: merged.data,
+      };
+      const updated = await base44.entities.LedgerUser.update(user.id, payload);
+      setKarmaUsers((items) => normalizeKarmaUsers(items.map((item) => (item.id === user.id ? { ...item, ...updated, ...payload } : item))));
+      setKarmaDrafts((drafts) => {
+        const next = { ...drafts };
+        delete next[`${user.id}:${previousName}`];
+        return next;
+      });
+      setEditingKarmaEntry(null);
+    } catch (error) {
+      console.error('Failed to update karma:', error);
+      setEditError('업보를 수정하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteKarmaItem(user, itemName) {
+    if (!user?.id || !itemName || !window.confirm('이 업보 항목을 삭제할까요?')) return;
+    setIsSaving(true);
+    try {
+      const counts = { ...(user.counts || {}) };
+      const data = { ...(user.data || {}) };
+      delete counts[itemName];
+      delete data[itemName];
+      const updated = await base44.entities.LedgerUser.update(user.id, { counts, data });
+      setKarmaUsers((items) => normalizeKarmaUsers(items.map((item) => (item.id === user.id ? { ...item, ...updated, counts, data } : item))));
+      setKarmaDetail((current) => (current?.id === user.id ? { ...current, counts, data } : current));
+    } catch (error) {
+      console.error('Failed to delete karma:', error);
+      setEditError('업보를 삭제하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -540,7 +822,7 @@ export default function ScrapbookPage() {
                 <button onClick={() => setBaseDate(new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1))}>이전</button>
                 <button onClick={() => setBaseDate(new Date())}>오늘</button>
                 <button onClick={() => setBaseDate(new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1))}>다음</button>
-                {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('schedule')}>일정 등록</button> : null}
+                {isAdmin ? <button type="button" onClick={() => openEventEditor(toDateKey(today))}>일정 등록</button> : null}
               </div>
             </PageHead>
             <div className="page-body paper-panel">
@@ -551,7 +833,7 @@ export default function ScrapbookPage() {
                   const key = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                   const events = schedulesByDate[key] || [];
                   return (
-                    <div className={`day ${key === toDateKey(today) ? 'today' : ''}`} key={key}>
+                    <div className={`day ${key === toDateKey(today) ? 'today' : ''}`} key={key} onDoubleClick={() => isAdmin && openEventEditor(key)}>
                       <div className="day-top"><b>{date}</b></div>
                       <div className="event-stack">
                         {events.map((event) => (
@@ -559,6 +841,12 @@ export default function ScrapbookPage() {
                             <i aria-hidden="true" />
                             <span>{formatScheduleTime(event.time)}</span>
                             <strong>{event.title}</strong>
+                            {isAdmin ? (
+                              <em>
+                                <button type="button" onClick={(clickEvent) => { clickEvent.stopPropagation(); openEventEditor(key, event); }} aria-label="일정 수정"><Pencil size={11} /></button>
+                                <button type="button" onClick={(clickEvent) => { clickEvent.stopPropagation(); void deleteEvent(event); }} aria-label="일정 삭제"><Trash2 size={11} /></button>
+                              </em>
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -571,7 +859,7 @@ export default function ScrapbookPage() {
 
           <section className={`sheet ${activePage === 'songs' ? 'active' : ''}`}>
             <PageHead title="임하밍 노래책">
-              {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('songs')}>노래 등록</button> : null}
+              {isAdmin ? <div className="month-tools"><button type="button" onClick={() => openSongEditor()}>노래 등록</button></div> : null}
             </PageHead>
             <div className="page-body song-layout">
               <aside className="filters">
@@ -590,7 +878,7 @@ export default function ScrapbookPage() {
                 </div>
                 <div className="song-card-grid">
                   {visibleSongs.map((song) => (
-                    <article className="song-card" key={song.id}>
+                    <article className={`song-card${isAdmin ? ' has-actions' : ''}`} key={song.id}>
                       <div className="song-card-main">
                         <div className="song-cover">
                           {song.coverUrl ? <span className="song-cover-img" style={{ backgroundImage: `url(${song.coverUrl})` }} /> : <span className="song-cover-empty">NO<br />COVER</span>}
@@ -606,6 +894,14 @@ export default function ScrapbookPage() {
                         {song.conditionCheck ? <span className="condition-badge">컨디션 체크 필요</span> : null}
                       </div>
                       {song.remarks ? <p className="song-remarks">{song.remarks}</p> : <p className="song-remarks muted">비고 없음</p>}
+                      {isAdmin ? (
+                        <div className="song-card-footer">
+                          <div className="song-admin-actions">
+                            <button type="button" onClick={() => openSongEditor(song)}>수정</button>
+                            <button type="button" onClick={() => void deleteSong(song)}>삭제</button>
+                          </div>
+                        </div>
+                      ) : null}
                     </article>
                   ))}
                   {!visibleSongs.length ? <p className="empty-text">찾는 노래가 없습니다.</p> : null}
@@ -616,30 +912,66 @@ export default function ScrapbookPage() {
 
           <section className={`sheet ${activePage === 'karma' ? 'active' : ''}`}>
             <PageHead title="업보 현황">
-              {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('karma')}>업보 등록</button> : null}
+              {isAdmin ? (
+                <div className="month-tools">
+                  <button type="button" onClick={() => setNewKarmaEntry(emptyKarmaDraft())}>업보 등록</button>
+                  <button type="button" onClick={() => setIsKarmaEditMode((value) => !value)}>{isKarmaEditMode ? '카드 보기' : '업보 수정'}</button>
+                </div>
+              ) : null}
             </PageHead>
             <div className="page-body karma-board">
-              <section className="karma-card-panel">
-                <div className="karma-card-search"><span>검색</span><input value={karmaQuery} onChange={(event) => setKarmaQuery(event.target.value)} placeholder="닉네임 또는 SOOP ID 검색" /></div>
-                <div className="karma-profile-grid">
-                  {visibleKarma.map((user, index) => {
-                    const avatar = karmaAvatarUrl(user);
-                    const items = karmaItems(user);
-                    return (
-                      <button type="button" className="karma-profile-card" key={user.id} onClick={() => setKarmaDetail(user)}>
-                        <span className="karma-rank">{String(index + 1).padStart(2, '0')}</span>
-                        <div className="karma-avatar"><strong>{karmaInitial(user.nickname || user.userId)}</strong>{avatar ? <img src={avatar} alt={`${user.nickname || user.userId} 프로필`} loading="lazy" decoding="async" onError={(event) => event.currentTarget.remove()} /> : null}</div>
-                        <p>SOOP · {user.userId || '-'}</p>
-                        <h2>{user.nickname || '이름 없음'}</h2>
-                        <div className="karma-card-line" />
-                        <div className="karma-card-meta"><strong>업보 {karmaTotal(user)}</strong><span>{items.length} CATEGORIES</span></div>
-                        <span className="karma-record-empty">VIEW RECORD ↗</span>
-                      </button>
-                    );
-                  })}
-                  {!visibleKarma.length ? <p className="empty-text">NO RECORDS YET</p> : null}
-                </div>
-              </section>
+              {isKarmaEditMode && isAdmin ? (
+                <section className="karma-edit-panel">
+                  <div className="karma-card-search"><span>검색</span><input value={karmaQuery} onChange={(event) => setKarmaQuery(event.target.value)} placeholder="닉네임, SOOP ID, 업보 항목 검색" /></div>
+                  <div className="karma-edit-table-wrap">
+                    <table className="karma-edit-table">
+                      <thead>
+                        <tr><th>#</th><th>닉네임</th><th>SOOP ID</th><th>업보 항목</th><th>내용/수량</th><th>관리</th></tr>
+                      </thead>
+                      <tbody>
+                        {karmaEditRows.map(({ key, user, item, draft }, index) => (
+                          <tr key={key}>
+                            <td>{index + 1}</td>
+                            <td><input value={draft.nickname} onChange={(event) => setKarmaDrafts((drafts) => ({ ...drafts, [key]: { ...draft, nickname: event.target.value } }))} /></td>
+                            <td><input value={draft.userId} onChange={(event) => setKarmaDrafts((drafts) => ({ ...drafts, [key]: { ...draft, userId: event.target.value } }))} /></td>
+                            <td><input value={draft.itemName} onChange={(event) => setKarmaDrafts((drafts) => ({ ...drafts, [key]: { ...draft, itemName: event.target.value } }))} /></td>
+                            <td><input value={draft.itemValue} onChange={(event) => setKarmaDrafts((drafts) => ({ ...drafts, [key]: { ...draft, itemValue: event.target.value } }))} /></td>
+                            <td>
+                              <div className="karma-edit-actions">
+                                <button type="button" onClick={() => void saveKarmaEdit(draft, user, item.name)} disabled={isSaving}>저장</button>
+                                <button type="button" onClick={() => void deleteKarmaItem(user, item.name)} disabled={isSaving}>삭제</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {!karmaEditRows.length ? <tr><td colSpan={6} className="karma-empty-row">수정할 업보가 없습니다.</td></tr> : null}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ) : (
+                <section className="karma-card-panel">
+                  <div className="karma-card-search"><span>검색</span><input value={karmaQuery} onChange={(event) => setKarmaQuery(event.target.value)} placeholder="닉네임 또는 SOOP ID 검색" /></div>
+                  <div className="karma-profile-grid">
+                    {visibleKarma.map((user, index) => {
+                      const avatar = karmaAvatarUrl(user);
+                      const items = karmaItems(user);
+                      return (
+                        <button type="button" className="karma-profile-card" key={user.id} onClick={() => setKarmaDetail(user)}>
+                          <span className="karma-rank">{String(index + 1).padStart(2, '0')}</span>
+                          <div className="karma-avatar"><strong>{karmaInitial(user.nickname || user.userId)}</strong>{avatar ? <img src={avatar} alt={`${user.nickname || user.userId} 프로필`} loading="lazy" decoding="async" onError={(event) => event.currentTarget.remove()} /> : null}</div>
+                          <p>SOOP · {user.userId || '-'}</p>
+                          <h2>{user.nickname || '이름 없음'}</h2>
+                          <div className="karma-card-line" />
+                          <div className="karma-card-meta"><strong>업보 {karmaTotal(user)}</strong><span>{items.length} CATEGORIES</span></div>
+                          <span className="karma-record-empty">VIEW RECORD ↗</span>
+                        </button>
+                      );
+                    })}
+                    {!visibleKarma.length ? <p className="empty-text">NO RECORDS YET</p> : null}
+                  </div>
+                </section>
+              )}
             </div>
           </section>
 
@@ -701,25 +1033,96 @@ export default function ScrapbookPage() {
             </div>
             <div className="karma-detail-line" />
             <div className="karma-detail-list">
-              {karmaItems(karmaDetail).map((item) => <article key={`${item.name}-${item.value}`}><div><strong>{item.name}</strong><span>{item.value}</span></div></article>)}
+              {karmaItems(karmaDetail).map((item) => (
+                <article key={`${item.name}-${item.value}`}>
+                  <div><strong>{item.name}</strong><span>{item.value}</span></div>
+                  {isAdmin ? (
+                    <div className="karma-detail-actions">
+                      <button type="button" onClick={() => setEditingKarmaEntry({ nickname: karmaDetail.nickname || '', userId: karmaDetail.userId || '', itemName: item.name, itemValue: item.value, previousName: item.name, user: karmaDetail })}>수정</button>
+                      <button type="button" onClick={() => void deleteKarmaItem(karmaDetail, item.name)}>삭제</button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
               {!karmaItems(karmaDetail).length ? <p>등록된 업보가 없습니다.</p> : null}
             </div>
           </section>
         </div>
       ) : null}
 
-      {adminPanel ? (
-        <div className="admin-panel-overlay">
-          <div className="admin-panel-toolbar">
-            <div>
-              <span>ADMIN</span>
-              <h2>{adminPanelTitles[adminPanel]}</h2>
+      {editingEvent ? (
+        <div className="modal-dim" onClick={() => setEditingEvent(null)}>
+          <form className="edit-panel" onSubmit={(event) => { event.preventDefault(); void saveEvent(); }} onClick={(event) => event.stopPropagation()}>
+            <div className="edit-head"><h2>{editingEvent.id ? '일정 수정' : '일정 추가'}</h2><button type="button" onClick={() => setEditingEvent(null)} aria-label="닫기"><X size={18} /></button></div>
+            <label>제목<input value={editingEvent.title} onChange={(event) => setEditingEvent({ ...editingEvent, title: event.target.value })} required /></label>
+            <label>날짜<input type="date" value={editingEvent.date} onChange={(event) => setEditingEvent({ ...editingEvent, date: event.target.value })} required /></label>
+            <label>시간<input value={editingEvent.time} onChange={(event) => setEditingEvent({ ...editingEvent, time: event.target.value })} placeholder="20:00" /></label>
+            <label>색상<input type="color" value={editingEvent.color} onChange={(event) => setEditingEvent({ ...editingEvent, color: event.target.value })} /></label>
+            <div className="event-color-palette" aria-label="기본 색상 팔레트">
+              {eventColors.map((color) => <button type="button" className={editingEvent.color.toLowerCase() === color.toLowerCase() ? 'active' : ''} style={{ '--swatch-color': color }} onClick={() => setEditingEvent({ ...editingEvent, color })} aria-label={`색상 ${color}`} key={color} />)}
             </div>
-            <button type="button" onClick={() => setAdminPanel(null)}>스크랩북으로 돌아가기</button>
-          </div>
-          <div className="admin-panel-body">
-            {renderAdminPanel()}
-          </div>
+            <label>메모<textarea value={editingEvent.memo} onChange={(event) => setEditingEvent({ ...editingEvent, memo: event.target.value })} rows={4} /></label>
+            {editError ? <p className="edit-error">{editError}</p> : null}
+            <button className="edit-save" disabled={isSaving}>{isSaving ? '저장 중' : '저장'}</button>
+          </form>
+        </div>
+      ) : null}
+
+      {editingSong ? (
+        <div className="modal-dim" onClick={() => setEditingSong(null)}>
+          <form className="edit-panel" onSubmit={(event) => { event.preventDefault(); void saveSong(); }} onClick={(event) => event.stopPropagation()}>
+            <div className="edit-head"><h2>{editingSong.id ? '노래 수정' : '노래 등록'}</h2><button type="button" onClick={() => setEditingSong(null)} aria-label="닫기"><X size={18} /></button></div>
+            <label>곡명<input value={editingSong.title} onChange={(event) => setEditingSong({ ...editingSong, title: event.target.value })} required /></label>
+            <label>가수<input value={editingSong.artist} onChange={(event) => setEditingSong({ ...editingSong, artist: event.target.value })} /></label>
+            <label>키<input value={editingSong.key} onChange={(event) => setEditingSong({ ...editingSong, key: event.target.value })} placeholder="F# 원키, -2키" /></label>
+            <fieldset className="tag-picker">
+              <legend>태그</legend>
+              {songTagOptions.map((tag) => (
+                <label key={tag}>
+                  <input type="checkbox" checked={editingSong.tags.includes(tag)} onChange={(event) => {
+                    const tags = event.target.checked ? [...editingSong.tags, tag] : editingSong.tags.filter((item) => item !== tag);
+                    setEditingSong({ ...editingSong, tags });
+                  }} />
+                  <span>{tag}</span>
+                </label>
+              ))}
+              {!songTagOptions.length ? <p>선택할 태그가 없습니다.</p> : null}
+            </fieldset>
+            <label>숙련도<select value={editingSong.proficiency} onChange={(event) => setEditingSong({ ...editingSong, proficiency: event.target.value })}>{songProficiencyOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
+            <label className="check-line"><input type="checkbox" checked={editingSong.conditionCheck} onChange={(event) => setEditingSong({ ...editingSong, conditionCheck: event.target.checked })} /><span>컨디션 체크</span></label>
+            <label>비고<textarea value={editingSong.remarks} onChange={(event) => setEditingSong({ ...editingSong, remarks: event.target.value })} rows={3} /></label>
+            {editError ? <p className="edit-error">{editError}</p> : null}
+            <button className="edit-save" disabled={isSaving}>{isSaving ? '저장 중' : '저장'}</button>
+          </form>
+        </div>
+      ) : null}
+
+      {newKarmaEntry ? (
+        <div className="modal-dim" onClick={() => setNewKarmaEntry(null)}>
+          <form className="edit-panel" onSubmit={(event) => { event.preventDefault(); void saveNewKarma(); }} onClick={(event) => event.stopPropagation()}>
+            <div className="edit-head"><h2>업보 등록</h2><button type="button" onClick={() => setNewKarmaEntry(null)} aria-label="닫기"><X size={18} /></button></div>
+            <label>닉네임<input value={newKarmaEntry.nickname} onChange={(event) => setNewKarmaEntry({ ...newKarmaEntry, nickname: event.target.value })} required /></label>
+            <label>SOOP ID<input value={newKarmaEntry.userId} onChange={(event) => setNewKarmaEntry({ ...newKarmaEntry, userId: event.target.value })} required /></label>
+            <label>분류<select value={newKarmaEntry.category} onChange={(event) => setNewKarmaEntry({ ...newKarmaEntry, category: event.target.value })}>{karmaCategoryOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
+            <label>업보 항목<input value={newKarmaEntry.itemName} onChange={(event) => setNewKarmaEntry({ ...newKarmaEntry, itemName: event.target.value })} placeholder="예: 밍조각, 노래권, costume" /></label>
+            <label>내용/수량<input value={newKarmaEntry.itemValue} onChange={(event) => setNewKarmaEntry({ ...newKarmaEntry, itemValue: event.target.value })} placeholder="예: 1 또는 완료" /></label>
+            {editError ? <p className="edit-error">{editError}</p> : null}
+            <button className="edit-save" disabled={isSaving}>{isSaving ? '등록 중' : '등록'}</button>
+          </form>
+        </div>
+      ) : null}
+
+      {editingKarmaEntry ? (
+        <div className="modal-dim" onClick={() => setEditingKarmaEntry(null)}>
+          <form className="edit-panel" onSubmit={(event) => { event.preventDefault(); void saveKarmaEdit(editingKarmaEntry, editingKarmaEntry.user, editingKarmaEntry.previousName); }} onClick={(event) => event.stopPropagation()}>
+            <div className="edit-head"><h2>업보 수정</h2><button type="button" onClick={() => setEditingKarmaEntry(null)} aria-label="닫기"><X size={18} /></button></div>
+            <label>닉네임<input value={editingKarmaEntry.nickname} onChange={(event) => setEditingKarmaEntry({ ...editingKarmaEntry, nickname: event.target.value })} required /></label>
+            <label>SOOP ID<input value={editingKarmaEntry.userId} onChange={(event) => setEditingKarmaEntry({ ...editingKarmaEntry, userId: event.target.value })} required /></label>
+            <label>업보 항목<input value={editingKarmaEntry.itemName} onChange={(event) => setEditingKarmaEntry({ ...editingKarmaEntry, itemName: event.target.value })} required /></label>
+            <label>내용/수량<input value={editingKarmaEntry.itemValue} onChange={(event) => setEditingKarmaEntry({ ...editingKarmaEntry, itemValue: event.target.value })} placeholder="예: 1 또는 완료" /></label>
+            {editError ? <p className="edit-error">{editError}</p> : null}
+            <button className="edit-save" disabled={isSaving}>{isSaving ? '수정 중' : '수정 저장'}</button>
+          </form>
         </div>
       ) : null}
 
