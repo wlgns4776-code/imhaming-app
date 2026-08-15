@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '../api/base44Client';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from '../components/LoginModal';
+import CalendarPage from './CalendarPage';
+import SongBookPage from './SongBookPage';
+import RoulettePage from './RoulettePage';
 import '../scrapbook.css';
 
 const navItems = [
@@ -16,7 +19,16 @@ const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const partColors = ['#ff5b8f', '#ff965b', '#ffd15b', '#83e05a', '#5bc4ff', '#5b79ff', '#9e5bff', '#ff5bd4'];
 const proficiencyOk = new Set(['가능', '완료', 'ok', 'OK']);
 const heroSettingTitle = '__imhaming_site_setting__hero_image_url';
+const stationId = 'imha22';
 const stationUrl = 'https://www.sooplive.com/station/imha22';
+const stationBoardUrl = `${stationUrl}/board`;
+const noticeBoardNo = 90076414;
+const soopBoardApiUrl = `https://api-channel.sooplive.com/v1.1/channel/${stationId}/board?perPage=20&page=1`;
+const adminPanelTitles = {
+  schedule: '일정 관리',
+  songs: '노래책 관리',
+  karma: '업보 관리',
+};
 
 function toKstDateKey(value) {
   const date = new Date(value);
@@ -56,6 +68,81 @@ function normalizeEvent(item) {
     location: item.memo || '',
     color: item.color || '#ff8fc4',
   };
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || '').replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (match, entity) => ({
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    '#39': "'",
+    nbsp: ' ',
+  })[entity] || match);
+}
+
+function extractTextFromHtml(html) {
+  if (!html) return '';
+  if (typeof DOMParser === 'undefined') {
+    return decodeHtmlEntities(String(html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, ' '));
+  }
+
+  const doc = new DOMParser().parseFromString(String(html), 'text/html');
+  const paragraphText = Array.from(doc.body.querySelectorAll('p, li, figcaption'))
+    .map((node) => node.textContent.trim())
+    .filter(Boolean)
+    .join(' ');
+
+  return paragraphText || doc.body.textContent || '';
+}
+
+function cleanNoticeText(value) {
+  return decodeHtmlEntities(value)
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeNoticePost(post) {
+  const bodyText = cleanNoticeText(
+    extractTextFromHtml(post.content?.content)
+    || post.content?.textContent
+    || post.content?.summary
+  );
+
+  return {
+    id: String(post.titleNo || ''),
+    title: post.titleName || '임하밍 최신 공지',
+    summary: bodyText || '공지 내용은 게시글에서 확인할 수 있어요.',
+    date: post.regDate || '',
+    url: post.titleNo ? `${stationUrl}/post/${post.titleNo}` : stationBoardUrl,
+  };
+}
+
+async function fetchLatestSoopNotice() {
+  const requestUrls = [
+    soopBoardApiUrl,
+    `https://corsproxy.io/?url=${encodeURIComponent(soopBoardApiUrl)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(soopBoardApiUrl)}`,
+  ];
+
+  let lastError;
+  for (const url of requestUrls) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json, text/plain, */*' },
+      });
+      if (!response.ok) throw new Error(`SOOP notice request failed: ${response.status}`);
+      const data = await response.json();
+      const contents = Array.isArray(data.contents) ? data.contents : [];
+      const notice = contents.find((post) => Number(post.bbsNo) === noticeBoardNo || post.display?.bbsName?.includes('공지'));
+      if (notice) return normalizeNoticePost(notice);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('SOOP notice was not found.');
 }
 
 function normalizeSong(item) {
@@ -199,16 +286,23 @@ export default function ScrapbookPage() {
   const [partLyrics, setPartLyrics] = useState('');
   const [partAssignments, setPartAssignments] = useState({});
   const [partCopied, setPartCopied] = useState(false);
+  const [latestNotice, setLatestNotice] = useState(null);
+  const [noticeLoadFailed, setNoticeLoadFailed] = useState(false);
+  const [adminPanel, setAdminPanel] = useState(null);
 
   useEffect(() => {
     let ignore = false;
     async function loadData() {
       try {
-        const [calendarRows, songRows, ledgerRows, partRows] = await Promise.all([
+        const [calendarRows, songRows, ledgerRows, partRows, noticeData] = await Promise.all([
           base44.entities.CalendarEvent.list().catch(() => []),
           base44.entities.Song.list().catch(() => []),
           base44.entities.LedgerUser.list().catch(() => []),
           base44.entities.PartDistributor.list().catch(() => []),
+          fetchLatestSoopNotice().catch((error) => {
+            console.warn('Failed to load latest SOOP notice:', error);
+            return null;
+          }),
         ]);
         if (ignore) return;
 
@@ -222,6 +316,8 @@ export default function ScrapbookPage() {
         setSchedules(calendarRows.map(normalizeEvent).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
         setSongs(normalizedSongs);
         setKarmaUsers(normalizeKarmaUsers(ledgerRows));
+        setLatestNotice(noticeData);
+        setNoticeLoadFailed(!noticeData);
         if (heroSetting && !localStorage.getItem('imhaming.heroImageUrl')) {
           setHeroImageUrl(heroSetting.lyrics || heroSetting.remarks || heroSetting.coverUrl || '');
         }
@@ -289,6 +385,10 @@ export default function ScrapbookPage() {
     return `[${memberName}] ${line.text}`;
   }).join('\n'), [memberById, partAssignments, partLines]);
   const todayEvents = schedulesByDate[toDateKey(today)] || [];
+  const noticeTitle = latestNotice?.title || '최신 공지 확인 중';
+  const noticeSummary = latestNotice?.summary || (noticeLoadFailed ? '공지 게시판에서 최신 공지를 확인해 주세요.' : '임하밍 방송국 최신 공지를 불러오고 있어요.');
+  const noticeDate = latestNotice?.date || new Date().toLocaleDateString('ko-KR');
+  const noticeUrl = latestNotice?.url || stationBoardUrl;
 
   function saveHeroImage(file) {
     const reader = new FileReader();
@@ -343,6 +443,13 @@ export default function ScrapbookPage() {
       }
     });
     setPartAssignments(next);
+  }
+
+  function renderAdminPanel() {
+    if (adminPanel === 'schedule') return <CalendarPage />;
+    if (adminPanel === 'songs') return <SongBookPage />;
+    if (adminPanel === 'karma') return <RoulettePage />;
+    return null;
   }
 
   return (
@@ -412,10 +519,10 @@ export default function ScrapbookPage() {
                 </article>
                 <article className="memo notice">
                   <span className="label">NOTICE</span>
-                  <h2>오늘 다들 재미있으셨나요!?! ㅎㅎ</h2>
-                  <p>공지와 다시보기는 임하밍 방송국에서 확인할 수 있어요.</p>
-                  <small>{new Date().toLocaleDateString('ko-KR')}</small>
-                  <a href={stationUrl} target="_blank" rel="noreferrer">공지 보기</a>
+                  <h2>{noticeTitle}</h2>
+                  <p>{noticeSummary}</p>
+                  <small>{noticeDate}</small>
+                  <a href={noticeUrl} target="_blank" rel="noreferrer">공지 보기</a>
                 </article>
                 <article className="memo next">
                   <span className="label">STATION</span>
@@ -433,6 +540,7 @@ export default function ScrapbookPage() {
                 <button onClick={() => setBaseDate(new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1))}>이전</button>
                 <button onClick={() => setBaseDate(new Date())}>오늘</button>
                 <button onClick={() => setBaseDate(new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1))}>다음</button>
+                {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('schedule')}>일정 등록</button> : null}
               </div>
             </PageHead>
             <div className="page-body paper-panel">
@@ -462,7 +570,9 @@ export default function ScrapbookPage() {
           </section>
 
           <section className={`sheet ${activePage === 'songs' ? 'active' : ''}`}>
-            <PageHead title="임하밍 노래책" />
+            <PageHead title="임하밍 노래책">
+              {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('songs')}>노래 등록</button> : null}
+            </PageHead>
             <div className="page-body song-layout">
               <aside className="filters">
                 <h3>분류</h3>
@@ -505,7 +615,9 @@ export default function ScrapbookPage() {
           </section>
 
           <section className={`sheet ${activePage === 'karma' ? 'active' : ''}`}>
-            <PageHead title="업보 현황" />
+            <PageHead title="업보 현황">
+              {isAdmin ? <button className="admin-register-button" type="button" onClick={() => setAdminPanel('karma')}>업보 등록</button> : null}
+            </PageHead>
             <div className="page-body karma-board">
               <section className="karma-card-panel">
                 <div className="karma-card-search"><span>검색</span><input value={karmaQuery} onChange={(event) => setKarmaQuery(event.target.value)} placeholder="닉네임 또는 SOOP ID 검색" /></div>
@@ -593,6 +705,21 @@ export default function ScrapbookPage() {
               {!karmaItems(karmaDetail).length ? <p>등록된 업보가 없습니다.</p> : null}
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {adminPanel ? (
+        <div className="admin-panel-overlay">
+          <div className="admin-panel-toolbar">
+            <div>
+              <span>ADMIN</span>
+              <h2>{adminPanelTitles[adminPanel]}</h2>
+            </div>
+            <button type="button" onClick={() => setAdminPanel(null)}>스크랩북으로 돌아가기</button>
+          </div>
+          <div className="admin-panel-body">
+            {renderAdminPanel()}
+          </div>
         </div>
       ) : null}
 

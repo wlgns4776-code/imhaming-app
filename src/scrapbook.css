@@ -783,6 +783,7 @@ body.desktop-shell-active .desk {
   width: 54%;
   min-height: 25%;
   background: #8edff0;
+  padding-bottom: 48px;
   transform: rotate(.6deg);
 }
 
@@ -799,7 +800,7 @@ body.desktop-shell-active .desk {
   overflow: hidden;
   line-height: 1.35;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .memo.notice small {
@@ -874,6 +875,74 @@ body.desktop-shell-active .desk {
   background: #fff;
   padding: 6px 12px;
   font: 400 15px var(--font-cute);
+}
+
+.admin-register-button {
+  border: 2px solid #413650;
+  border-radius: 999px;
+  background: #ff8fc4;
+  color: #221936;
+  padding: 7px 14px;
+  box-shadow: 2px 3px 0 #d7f276;
+  font: 400 15px var(--font-cute);
+}
+
+.admin-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #f4fbff;
+  color: #1e1833;
+}
+
+.admin-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 2px solid #413650;
+  background:
+    linear-gradient(#d7f1f8 1px, transparent 1px),
+    linear-gradient(90deg, #d7f1f8 1px, transparent 1px),
+    #fffdf8;
+  background-size: 24px 24px;
+  padding: 14px 22px;
+  box-shadow: 0 4px 0 #8edff0;
+}
+
+.admin-panel-toolbar span {
+  display: inline-block;
+  margin-bottom: 3px;
+  padding: 3px 9px;
+  background: #34304c;
+  color: #fff;
+  font: 800 11px "Noto Sans KR", sans-serif;
+}
+
+.admin-panel-toolbar h2 {
+  margin: 0;
+  font: 400 25px var(--font-cute);
+}
+
+.admin-panel-toolbar button {
+  border: 2px solid #413650;
+  border-radius: 999px;
+  background: #fff;
+  padding: 8px 14px;
+  box-shadow: 2px 3px 0 #ffb8d7;
+  font: 400 15px var(--font-cute);
+}
+
+.admin-panel-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+}
+
+.admin-panel-body > * {
+  min-height: calc(100dvh - 106px);
 }
 
 .calendar {
