@@ -112,6 +112,17 @@ a {
   box-shadow: 0 3px 0 #342d4b;
 }
 
+.desktop-update-pill .spin,
+.desktop-update-button .spin {
+  animation: desktop-spin 1s linear infinite;
+}
+
+@keyframes desktop-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .desktop-window-controls {
   -webkit-app-region: no-drag;
   display: flex;

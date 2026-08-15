@@ -155,6 +155,10 @@ autoUpdater.on('update-available', (info) => {
   if (mainWindow) mainWindow.webContents.send('update-available', info);
 });
 
+autoUpdater.on('update-not-available', (info) => {
+  if (mainWindow) mainWindow.webContents.send('update-not-available', info);
+});
+
 autoUpdater.on('download-progress', (progressObj) => {
   if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
 });
@@ -170,6 +174,14 @@ autoUpdater.on('error', (err) => {
 ipcMain.on('quit-and-install', () => {
     autoUpdater.quitAndInstall(false, true); // (keep silent, force restart)
 });
+
+ipcMain.on('check-for-updates', () => {
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+    }
+});
+
+ipcMain.handle('get-app-version', () => app.getVersion());
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -189,10 +201,13 @@ if (!gotTheLock) {
 app.on('ready', () => {
   createWindow();
   
-  // Checking for updates after a short delay to ensure UI is ready
-  setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify();
-  }, 2000);
+  mainWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+      }
+    }, 2000);
+  });
 });
 
 app.on('window-all-closed', function () {

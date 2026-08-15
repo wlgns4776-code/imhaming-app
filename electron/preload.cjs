@@ -12,10 +12,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onGetBoundsReply: (callback) => ipcRenderer.on('get-bounds-reply', (event, bounds) => callback(bounds)),
 
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
+    onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, info) => callback(info)),
     onUpdateProgress: (callback) => ipcRenderer.on('download-progress', (event, progressObj) => callback(progressObj)),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info)),
     onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
-    quitAndInstall: () => ipcRenderer.send('quit-and-install')
+    checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+    quitAndInstall: () => ipcRenderer.send('quit-and-install'),
+    getAppVersion: () => ipcRenderer.invoke('get-app-version')
 });
 
 window.addEventListener('DOMContentLoaded', () => {
