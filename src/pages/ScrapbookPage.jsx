@@ -121,8 +121,20 @@ function karmaTotal(user) {
   return Object.values(user.counts || {}).reduce((sum, value) => sum + (Number(value) || 0), 0) || karmaItems(user).length;
 }
 
+function soopProfileImageUrl(userId) {
+  const cleanId = String(userId || '').trim().toLowerCase();
+  if (!/^[a-z0-9_]+$/.test(cleanId) || cleanId.length < 2) return '';
+  return `https://stimg.afreecatv.com/LOGO/${cleanId.slice(0, 2)}/${cleanId}/${cleanId}.jpg`;
+}
+
 function karmaAvatarUrl(user) {
-  return user.profileImage || user.data?.avatarUrl || user.data?.avatar_url || user.data?.profileImage || user.data?.profile_image || user.data?.image || '';
+  return user.profileImage
+    || user.data?.avatarUrl
+    || user.data?.avatar_url
+    || user.data?.profileImage
+    || user.data?.profile_image
+    || user.data?.image
+    || soopProfileImageUrl(user.userId || user.user_id);
 }
 
 function karmaInitial(name) {
@@ -132,7 +144,7 @@ function karmaInitial(name) {
 function normalizeKarmaUsers(items) {
   const grouped = new Map();
   items.forEach((item) => {
-    const userId = String(item.userId || '').trim();
+    const userId = String(item.userId || item.user_id || '').trim();
     const key = userId.toLowerCase() || String(item.id);
     const target = grouped.get(key) || {
       id: String(item.id),
