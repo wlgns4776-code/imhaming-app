@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build and Publish Electron App
-        run: npm run electron:build -- -p always
+      - name: Build Electron App
+        run: npm run electron:build -- -p never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # (추가) electron-builder 전용 토큰
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,6 +36,17 @@ jobs:
           VITE_SERPAPI_KEY: ${{ secrets.VITE_SERPAPI_KEY }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            release-build-v2/*.exe
+            release-build-v2/*.exe.blockmap
+            release-build-v2/latest.yml
 
       - name: Upload Artifacts (보험용 안전장치!)
         uses: actions/upload-artifact@v4
