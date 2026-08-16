@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onGetSizeReply: (callback) => ipcRenderer.on('get-size-reply', (event, size) => callback(size)),
     onGetBoundsReply: (callback) => ipcRenderer.on('get-bounds-reply', (event, bounds) => callback(bounds)),
 
+    onCheckingForUpdate: (callback) => ipcRenderer.on('checking-for-update', () => callback()),
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
     onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, info) => callback(info)),
     onUpdateProgress: (callback) => ipcRenderer.on('download-progress', (event, progressObj) => callback(progressObj)),

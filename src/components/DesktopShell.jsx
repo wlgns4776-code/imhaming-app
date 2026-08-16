@@ -22,6 +22,7 @@ export default function DesktopShell({ children }) {
       if (appVersion) setVersion(appVersion);
     }).catch(() => {});
 
+    window.electronAPI.onCheckingForUpdate?.(() => setUpdateStatus('checking'));
     window.electronAPI.onUpdateAvailable?.(() => setUpdateStatus('available'));
     window.electronAPI.onUpdateNotAvailable?.(() => {
       setUpdateStatus('current');

@@ -1,7 +1,7 @@
 {
   "name": "imhaming-moeum-v2",
   "private": true,
-  "version": "1.0.32",
+  "version": "1.0.33",
   "repository": {
     "type": "git",
     "url": "https://github.com/wlgns4776-code/imhaming-app.git"
@@ -16,7 +16,7 @@
     "base44:push": "base44 entities push",
     "base44:deploy": "npm run build && base44 deploy --yes",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder --publish never"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.2.0",
@@ -53,6 +53,7 @@
   "build": {
     "appId": "com.imhaming.moeum.v2",
     "productName": "임하밍 아카이브",
+    "artifactName": "ImHamingArchive-${version}.${ext}",
     "win": {
       "target": "nsis"
     },

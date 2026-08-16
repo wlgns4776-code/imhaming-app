@@ -28,7 +28,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build Electron App
-        run: npm run electron:build -- -p never
+        run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # (추가) electron-builder 전용 토큰
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -39,9 +39,14 @@ jobs:
 
       - name: Create shareable installer alias
         run: |
-          $installer = Get-ChildItem -Path release-build-v2 -Filter "*.exe" | Select-Object -First 1
-          if (-not $installer) { throw "Installer exe was not found." }
-          Copy-Item -LiteralPath $installer.FullName -Destination "release-build-v2/ImHamingArchiveSetup.exe" -Force
+          $latestPath = "release-build-v2/latest.yml"
+          if (-not (Test-Path -LiteralPath $latestPath)) { throw "latest.yml was not found." }
+          $pathMatch = Select-String -Path $latestPath -Pattern "^\s*path:\s*(.+)$" | Select-Object -First 1
+          if (-not $pathMatch) { throw "Installer path was not found in latest.yml." }
+          $installerName = $pathMatch.Matches[0].Groups[1].Value.Trim(" '""")
+          $installerPath = Join-Path "release-build-v2" $installerName
+          if (-not (Test-Path -LiteralPath $installerPath)) { throw "Installer listed in latest.yml was not found: $installerName" }
+          Copy-Item -LiteralPath $installerPath -Destination "release-build-v2/ImHamingArchiveSetup.exe" -Force
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')

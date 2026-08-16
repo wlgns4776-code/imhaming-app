@@ -4,6 +4,41 @@ const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 
 let mainWindow;
+let isCheckingForUpdates = false;
+
+const UPDATE_FEED_URL = 'https://github.com/wlgns4776-code/imhaming-app/releases/latest/download';
+
+autoUpdater.setFeedURL({
+  provider: 'generic',
+  url: UPDATE_FEED_URL
+});
+autoUpdater.autoDownload = true;
+autoUpdater.allowPrerelease = false;
+autoUpdater.allowDowngrade = false;
+
+function sendToRenderer(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+function getUpdateErrorMessage(error) {
+  if (!error) return 'Unknown update error';
+  return error.stack || error.message || String(error);
+}
+
+async function checkForUpdates() {
+  if (!app.isPackaged || isCheckingForUpdates) return;
+
+  isCheckingForUpdates = true;
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    sendToRenderer('update-error', getUpdateErrorMessage(error));
+  } finally {
+    isCheckingForUpdates = false;
+  }
+}
 
 function getStatePath() {
   return path.join(app.getPath('userData'), 'window-state.json');
@@ -151,24 +186,28 @@ ipcMain.on('get-size', (event) => {
 });
 
 // Auto Updater Handlers
+autoUpdater.on('checking-for-update', () => {
+  sendToRenderer('checking-for-update');
+});
+
 autoUpdater.on('update-available', (info) => {
-  if (mainWindow) mainWindow.webContents.send('update-available', info);
+  sendToRenderer('update-available', info);
 });
 
 autoUpdater.on('update-not-available', (info) => {
-  if (mainWindow) mainWindow.webContents.send('update-not-available', info);
+  sendToRenderer('update-not-available', info);
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-  if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
+  sendToRenderer('download-progress', progressObj);
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-  if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
+  sendToRenderer('update-downloaded', info);
 });
 
 autoUpdater.on('error', (err) => {
-  if (mainWindow) mainWindow.webContents.send('update-error', err.message);
+  sendToRenderer('update-error', getUpdateErrorMessage(err));
 });
 
 ipcMain.on('quit-and-install', () => {
@@ -176,9 +215,7 @@ ipcMain.on('quit-and-install', () => {
 });
 
 ipcMain.on('check-for-updates', () => {
-    if (app.isPackaged) {
-        autoUpdater.checkForUpdatesAndNotify();
-    }
+    checkForUpdates();
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
@@ -203,9 +240,7 @@ app.on('ready', () => {
   
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(() => {
-      if (app.isPackaged) {
-        autoUpdater.checkForUpdatesAndNotify();
-      }
+      checkForUpdates();
     }, 2000);
   });
 });
