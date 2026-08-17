@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '../api/base44Client';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from '../components/LoginModal';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { Info, Pencil, Trash2, X } from 'lucide-react';
 import '../scrapbook.css';
 
 const navItems = [
@@ -22,16 +22,12 @@ const stationUrl = 'https://www.sooplive.com/station/imha22';
 const stationBoardUrl = `${stationUrl}/board`;
 const noticeBoardNo = 90076414;
 const soopBoardApiUrl = `https://api-channel.sooplive.com/v1.1/channel/${stationId}/board?perPage=20&page=1`;
-const eventColors = ['#ff8fc4', '#8edff0', '#ffe477', '#d7f276', '#cbb7ff', '#ff965b', '#5bc4ff', '#83e05a'];
+const eventColors = ['#ff8fc4', '#8edff0', '#ffe477', '#d7f276', '#cbb7ff', '#ff965b', '#5bc4ff', '#83e05a', '#6b7280'];
 const songProficiencyOptions = ['가능', '보류', '완료'];
 const karmaCategoryOptions = [
   { value: 'upbo', label: '업보' },
   { value: 'ming', label: '밍조각' },
-  { value: 'costume', label: '코스튬' },
-  { value: 'picta_roulette', label: '룰렛' },
-  { value: 'picta_confirm', label: '확정' },
 ];
-
 function toKstDateKey(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value || '').slice(0, 10);
@@ -318,6 +314,7 @@ export default function ScrapbookPage() {
   const [schedules, setSchedules] = useState([]);
   const [songs, setSongs] = useState([]);
   const [karmaUsers, setKarmaUsers] = useState([]);
+  const [exchangeRates, setExchangeRates] = useState([]);
   const [heroImageUrl, setHeroImageUrl] = useState(() => localStorage.getItem('imhaming.heroImageUrl') || '');
   const [karmaDetail, setKarmaDetail] = useState(null);
   const [partSongQuery, setPartSongQuery] = useState('');
@@ -333,6 +330,7 @@ export default function ScrapbookPage() {
   const [editingSong, setEditingSong] = useState(null);
   const [newKarmaEntry, setNewKarmaEntry] = useState(null);
   const [editingKarmaEntry, setEditingKarmaEntry] = useState(null);
+  const [isMingGuideOpen, setIsMingGuideOpen] = useState(false);
   const [isKarmaEditMode, setIsKarmaEditMode] = useState(false);
   const [karmaDrafts, setKarmaDrafts] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -342,11 +340,12 @@ export default function ScrapbookPage() {
     let ignore = false;
     async function loadData() {
       try {
-        const [calendarRows, songRows, ledgerRows, partRows, noticeData] = await Promise.all([
+        const [calendarRows, songRows, ledgerRows, partRows, exchangeRateRows, noticeData] = await Promise.all([
           base44.entities.CalendarEvent.list().catch(() => []),
           base44.entities.Song.list().catch(() => []),
           base44.entities.LedgerUser.list().catch(() => []),
           base44.entities.PartDistributor.list().catch(() => []),
+          base44.entities.ShopExchangeRate.list().catch(() => []),
           fetchLatestSoopNotice().catch((error) => {
             console.warn('Failed to load latest SOOP notice:', error);
             return null;
@@ -364,6 +363,7 @@ export default function ScrapbookPage() {
         setSchedules(calendarRows.map(normalizeEvent).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
         setSongs(normalizedSongs);
         setKarmaUsers(normalizeKarmaUsers(ledgerRows));
+        setExchangeRates([...exchangeRateRows].sort((a, b) => (Number(a.sortOrder ?? a.sort_order ?? a.pieces) || 0) - (Number(b.sortOrder ?? b.sort_order ?? b.pieces) || 0)));
         setLatestNotice(noticeData);
         setNoticeLoadFailed(!noticeData);
         if (heroSetting && !localStorage.getItem('imhaming.heroImageUrl')) {
@@ -912,12 +912,27 @@ export default function ScrapbookPage() {
 
           <section className={`sheet ${activePage === 'karma' ? 'active' : ''}`}>
             <PageHead title="업보 현황">
-              {isAdmin ? (
-                <div className="month-tools">
-                  <button type="button" onClick={() => setNewKarmaEntry(emptyKarmaDraft())}>업보 등록</button>
-                  <button type="button" onClick={() => setIsKarmaEditMode((value) => !value)}>{isKarmaEditMode ? '카드 보기' : '업보 수정'}</button>
+              <div className="month-tools karma-head-tools">
+                {isAdmin ? <button type="button" onClick={() => setNewKarmaEntry(emptyKarmaDraft())}>업보 등록</button> : null}
+                <div className="ming-guide-wrap">
+                  <button type="button" className="ming-guide-button" onClick={() => setIsMingGuideOpen((value) => !value)} aria-expanded={isMingGuideOpen}>
+                    <Info size={14} />밍조각
+                  </button>
+                  {isMingGuideOpen ? (
+                    <aside className="ming-guide-popover">
+                      <div className="ming-exchange-list">
+                        {exchangeRates.length ? exchangeRates.map((rate) => (
+                          <span key={rate.id || `${rate.pieces}-${rate.reward}`}>
+                            <b>{Number(rate.pieces).toLocaleString('ko-KR')}조각</b>
+                            <em>{rate.reward}</em>
+                          </span>
+                        )) : <p>등록된 교환비율이 없습니다.</p>}
+                      </div>
+                    </aside>
+                  ) : null}
                 </div>
-              ) : null}
+                {isAdmin ? <button type="button" onClick={() => setIsKarmaEditMode((value) => !value)}>{isKarmaEditMode ? '카드 보기' : '업보 수정'}</button> : null}
+              </div>
             </PageHead>
             <div className="page-body karma-board">
               {isKarmaEditMode && isAdmin ? (

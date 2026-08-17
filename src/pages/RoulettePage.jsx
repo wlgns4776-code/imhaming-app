@@ -18,28 +18,11 @@ const DEFAULT_CATEGORIES = [
     ],
   },
   {
-    key: 'picta_roulette',
-    label: '픽크타 룰렛',
-    type: 'A',
-    fields: [
-      { key: '룰렛', label: '룰렛' }
-    ],
-  },
-  {
     key: 'ming',
     label: '밍조각',
     type: 'A',
     fields: [
       { key: '밍조각', label: '밍조각' }
-    ],
-  },
-  {
-    key: 'costume',
-    label: '코스튬 의뢰',
-    type: 'B',
-    fields: [
-      { key: 'costume', label: '의상/옵션', inputType: 'text' },
-      { key: 'status', label: '진행상태', inputType: 'select', options: ['대기', '준완', '완료'] },
     ],
   },
 ];
@@ -117,25 +100,17 @@ const LedgerPage = () => {
           const cfg = configs[0];
           setConfigId(cfg.id);
           if (cfg.categories && cfg.categories.length > 0) {
-            let cats = [...cfg.categories].filter(c => c.key !== 'picta_confirm'); // Remove picta_confirm
-            // 없는 탭 자동 추가
+            let cats = [...cfg.categories].filter(c => ['upbo', 'ming'].includes(c.key));
             const autoTabs = [
-              { key: 'picta_roulette', label: '픽크타 룰렛', type: 'A', fields: [{ key: '룰렛', label: '룰렛' }] },
               { key: 'ming', label: '밍조각', type: 'A', fields: [{ key: '밍조각', label: '밍조각' }] },
             ];
             let needsUpdate = false;
             for (const tab of autoTabs) {
               if (!cats.find(c => c.key === tab.key)) { cats.push(tab); needsUpdate = true; }
             }
-            // 기존 picta_roulette가 'roulette' 타입이면 'A' 타입으로 수정
-            const pr = cats.find(c => c.key === 'picta_roulette');
-            if (pr && pr.type !== 'A') {
-              pr.type = 'A';
-              if (!pr.fields || pr.fields.length === 0) pr.fields = [{ key: '룰렛', label: '룰렛' }];
-              needsUpdate = true;
-            }
-            if (needsUpdate) await base44.entities.LedgerConfig.update(cfg.id, { categories: cats });
-            const order = { upbo: 1, picta_roulette: 3, ming: 4, costume: 5 };
+            if (!cats.find(c => c.key === 'upbo')) { cats.unshift(DEFAULT_CATEGORIES[0]); needsUpdate = true; }
+            if (needsUpdate || cats.length !== cfg.categories.length) await base44.entities.LedgerConfig.update(cfg.id, { categories: cats });
+            const order = { upbo: 1, ming: 2 };
             cats.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
 
             setCategories(cats);
@@ -144,17 +119,14 @@ const LedgerPage = () => {
             const legacy = cfg.columns || ['노래', '퀵뷰(7일)'];
             let migrated = [
               { key: 'upbo', label: '업보 장부', type: 'A', fields: legacy.map(c => ({ key: c, label: c })) },
-              ...DEFAULT_CATEGORIES.filter(c => c.type === 'B'),
             ];
             const autoTabs2 = [
-              { key: 'picta_roulette', label: '픽크타 룰렛', type: 'A', fields: [{ key: '룰렛', label: '룰렛' }] },
               { key: 'ming', label: '밍조각', type: 'A', fields: [{ key: '밍조각', label: '밍조각' }] },
             ];
             for (const tab of autoTabs2) {
               if (!migrated.find(c => c.key === tab.key)) migrated.push(tab);
             }
-            migrated = migrated.filter(c => c.key !== 'picta_confirm');
-            const order = { upbo: 1, picta_roulette: 3, ming: 4, costume: 5 };
+            const order = { upbo: 1, ming: 2 };
             migrated.sort((a, b) => (order[a.key] || 99) - (order[b.key] || 99));
 
             setCategories(migrated);

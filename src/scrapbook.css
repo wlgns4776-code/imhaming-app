@@ -1327,6 +1327,93 @@ body.desktop-shell-active .desk {
   overflow: hidden;
 }
 
+.karma-head-tools {
+  position: relative;
+  flex-wrap: wrap;
+}
+
+.ming-guide-wrap {
+  position: relative;
+}
+
+.ming-guide-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ming-guide-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: min(330px, calc(100vw - 56px));
+  overflow: hidden;
+  border: 1px solid #30333a;
+  border-radius: 2px;
+  background: #1c1f24;
+  color: #f1f5f9;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 34%);
+}
+
+.ming-guide-popover::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 34px;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  background: #1c1f24;
+  border-left: 1px solid #30333a;
+  border-top: 1px solid #30333a;
+}
+
+.ming-exchange-list {
+  display: grid;
+  gap: 7px;
+  margin: 12px;
+  border-radius: 7px;
+  background: #25282d;
+  padding: 12px;
+  text-align: left;
+}
+
+.ming-exchange-list span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-radius: 6px;
+  background: #1f2227;
+  padding: 10px 12px;
+}
+
+.ming-exchange-list b,
+.ming-exchange-list em {
+  min-width: 0;
+  color: #edf2f7;
+  font: 900 13px "Noto Sans KR", sans-serif;
+}
+
+.ming-exchange-list b {
+  color: #72b7ff;
+  white-space: nowrap;
+}
+
+.ming-exchange-list em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+}
+
+.ming-exchange-list p {
+  margin: 0;
+  color: #d9dde5;
+  font: 900 13px "Noto Sans KR", sans-serif;
+}
+
 .karma-card-search {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
