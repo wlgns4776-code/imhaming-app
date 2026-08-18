@@ -132,7 +132,7 @@ function findFirstImage(value) {
   }
   if (typeof value !== 'object') return '';
 
-  const directKeys = ['thumbnail', 'thumb', 'thumb_url', 'thumbUrl', 'broad_thumb', 'broadThumb', 'title_image', 'titleImage', 'profile_image', 'profileImage'];
+  const directKeys = ['thumbnail', 'thumb', 'thumb_url', 'thumbUrl', 'broad_thumb', 'broadThumb', 'title_image', 'titleImage'];
   for (const key of directKeys) {
     const image = findFirstImage(value[key]);
     if (image) return image;
@@ -180,58 +180,71 @@ function parseLiveStatusFromStation(data) {
   const broad = data?.broad || null;
   const station = data?.station || {};
   const broadNo = broad?.broad_no || broad?.broadNo;
-  const isLive = Boolean(broad) || Number(station?.active_no) === 1;
+  const isLive = Boolean(broad);
 
   return {
     isLive,
     isLoading: false,
     title: String(broad?.broad_title || broad?.title || station?.station_title || station?.station_name || '임하밍 생방송'),
-    thumbnailUrl: findFirstImage(broad) || (broadNo ? `https://liveimg.afreecatv.com/m/${broadNo}` : '') || (isLive ? findFirstImage(data) : ''),
+    thumbnailUrl: findFirstImage(broad) || (broadNo ? `https://liveimg.afreecatv.com/m/${broadNo}` : ''),
     url: stationLiveUrl,
   };
 }
 
 function parseLiveStatusFromPlayHtml(html) {
   const text = String(html || '');
-  const isLive = /broadcasting-type=["']live["']/i.test(text) || /id=["']broadState["'][^>]*>\s*방송중\s*</i.test(text);
-  const title = decodeHtmlEntities(text.match(/<h1[^>]*id=["']broadTitle["'][^>]*>(.*?)<\/h1>/i)?.[1]?.replace(/<[^>]*>/g, '') || '임하밍 생방송').trim();
-  const image = absoluteImageUrl(text.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)?.[1] || '');
+  const broadNo = text.match(/window\.nBroadNo\s*=\s*['"]?([^'";\s]+)['"]?\s*;/i)?.[1] || '';
+  const rawTitle = text.match(/window\.szBroadTitle\s*=\s*(['"])(.*?)\1\s*;/i)?.[2] || '';
+  const title = decodeHtmlEntities(rawTitle.replace(/\\"/g, '"').replace(/\\'/g, "'")).trim();
+  const rawThumbnail = text.match(/window\.szBroadThumPath\s*=\s*(['"])(.*?)\1\s*;/i)?.[2] || '';
+  const thumbnailUrl = absoluteImageUrl(rawThumbnail);
+  const isLive = Boolean(broadNo && broadNo !== 'null' && !/오프라인|offline/i.test(title));
 
   return {
     isLive,
     isLoading: false,
-    title,
-    thumbnailUrl: image && !image.includes('blind_background') ? image : '',
+    title: title || '임하밍 생방송',
+    thumbnailUrl: thumbnailUrl && !thumbnailUrl.includes('blind_background') ? thumbnailUrl : '',
     url: stationLiveUrl,
   };
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 async function fetchLatestLiveStatus() {
-  let lastError;
-  for (const url of proxiedUrls(soopStationApiUrl)) {
-    try {
-      const response = await fetch(url, { headers: { Accept: 'application/json, text/plain, */*' } });
+  const requests = [
+    ...proxiedUrls(soopStationApiUrl).map(async (url) => {
+      const response = await fetchWithTimeout(url, { headers: { Accept: 'application/json, text/plain, */*' } });
       if (!response.ok) throw new Error(`SOOP station request failed: ${response.status}`);
-      const data = await response.json();
-      const status = parseLiveStatusFromStation(data);
-      if (status.isLive) return status;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  for (const url of proxiedUrls(stationLiveUrl)) {
-    try {
-      const response = await fetch(url, { headers: { Accept: 'text/html, text/plain, */*' } });
+      return parseLiveStatusFromStation(await response.json());
+    }),
+    ...proxiedUrls(stationLiveUrl).map(async (url) => {
+      const response = await fetchWithTimeout(url, { headers: { Accept: 'text/html, text/plain, */*' } });
       if (!response.ok) throw new Error(`SOOP live page request failed: ${response.status}`);
-      const status = parseLiveStatusFromPlayHtml(await response.text());
-      if (status.isLive) return status;
-    } catch (error) {
-      lastError = error;
-    }
+      return parseLiveStatusFromPlayHtml(await response.text());
+    }),
+  ];
+
+  const results = await Promise.allSettled(requests);
+  const statuses = results
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
+  const liveStatus = statuses.find((status) => status.isLive);
+  if (liveStatus) return liveStatus;
+
+  const errors = results.filter((result) => result.status === 'rejected');
+  if (errors.length === results.length && errors[0]?.reason) {
+    console.warn('Failed to load SOOP live status:', errors[0].reason);
   }
 
-  if (lastError) console.warn('Failed to load SOOP live status:', lastError);
   return { isLive: false, isLoading: false, title: '', thumbnailUrl: '', url: stationLiveUrl };
 }
 
