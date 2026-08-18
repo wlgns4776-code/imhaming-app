@@ -19,8 +19,10 @@ const proficiencyOk = new Set(['가능', '완료', 'ok', 'OK']);
 const heroSettingTitle = '__imhaming_site_setting__hero_image_url';
 const stationId = 'imha22';
 const stationUrl = 'https://www.sooplive.com/station/imha22';
+const stationLiveUrl = `https://play.sooplive.com/${stationId}`;
 const stationBoardUrl = `${stationUrl}/board`;
 const noticeBoardNo = 90076414;
+const soopStationApiUrl = `https://bjapi.afreecatv.com/api/${stationId}/station`;
 const soopBoardApiUrl = `https://api-channel.sooplive.com/v1.1/channel/${stationId}/board?perPage=20&page=1`;
 const eventColors = ['#ff8fc4', '#8edff0', '#ffe477', '#d7f276', '#cbb7ff', '#ff965b', '#5bc4ff', '#83e05a', '#6b7280'];
 const songProficiencyOptions = ['가능', '보류', '완료'];
@@ -101,6 +103,43 @@ function cleanNoticeText(value) {
     .trim();
 }
 
+function proxiedUrls(targetUrl) {
+  return [
+    targetUrl,
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`,
+  ];
+}
+
+function absoluteImageUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (url.startsWith('//')) return `https:${url}`;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  if (url.startsWith('/')) return `https://www.sooplive.com${url}`;
+  return url;
+}
+
+function findFirstImage(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return absoluteImageUrl(value);
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const image = findFirstImage(item);
+      if (image) return image;
+    }
+    return '';
+  }
+  if (typeof value !== 'object') return '';
+
+  const directKeys = ['thumbnail', 'thumb', 'thumb_url', 'thumbUrl', 'broad_thumb', 'broadThumb', 'title_image', 'titleImage', 'profile_image', 'profileImage'];
+  for (const key of directKeys) {
+    const image = findFirstImage(value[key]);
+    if (image) return image;
+  }
+  return '';
+}
+
 function normalizeNoticePost(post) {
   const bodyText = cleanNoticeText(
     extractTextFromHtml(post.content?.content)
@@ -118,14 +157,8 @@ function normalizeNoticePost(post) {
 }
 
 async function fetchLatestSoopNotice() {
-  const requestUrls = [
-    soopBoardApiUrl,
-    `https://corsproxy.io/?url=${encodeURIComponent(soopBoardApiUrl)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(soopBoardApiUrl)}`,
-  ];
-
   let lastError;
-  for (const url of requestUrls) {
+  for (const url of proxiedUrls(soopBoardApiUrl)) {
     try {
       const response = await fetch(url, {
         headers: { Accept: 'application/json, text/plain, */*' },
@@ -141,6 +174,65 @@ async function fetchLatestSoopNotice() {
   }
 
   throw lastError || new Error('SOOP notice was not found.');
+}
+
+function parseLiveStatusFromStation(data) {
+  const broad = data?.broad || null;
+  const station = data?.station || {};
+  const broadNo = broad?.broad_no || broad?.broadNo;
+  const isLive = Boolean(broad) || Number(station?.active_no) === 1;
+
+  return {
+    isLive,
+    isLoading: false,
+    title: String(broad?.broad_title || broad?.title || station?.station_title || station?.station_name || '임하밍 생방송'),
+    thumbnailUrl: findFirstImage(broad) || (broadNo ? `https://liveimg.afreecatv.com/m/${broadNo}` : '') || (isLive ? findFirstImage(data) : ''),
+    url: stationLiveUrl,
+  };
+}
+
+function parseLiveStatusFromPlayHtml(html) {
+  const text = String(html || '');
+  const isLive = /broadcasting-type=["']live["']/i.test(text) || /id=["']broadState["'][^>]*>\s*방송중\s*</i.test(text);
+  const title = decodeHtmlEntities(text.match(/<h1[^>]*id=["']broadTitle["'][^>]*>(.*?)<\/h1>/i)?.[1]?.replace(/<[^>]*>/g, '') || '임하밍 생방송').trim();
+  const image = absoluteImageUrl(text.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)?.[1] || '');
+
+  return {
+    isLive,
+    isLoading: false,
+    title,
+    thumbnailUrl: image && !image.includes('blind_background') ? image : '',
+    url: stationLiveUrl,
+  };
+}
+
+async function fetchLatestLiveStatus() {
+  let lastError;
+  for (const url of proxiedUrls(soopStationApiUrl)) {
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json, text/plain, */*' } });
+      if (!response.ok) throw new Error(`SOOP station request failed: ${response.status}`);
+      const data = await response.json();
+      const status = parseLiveStatusFromStation(data);
+      if (status.isLive) return status;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  for (const url of proxiedUrls(stationLiveUrl)) {
+    try {
+      const response = await fetch(url, { headers: { Accept: 'text/html, text/plain, */*' } });
+      if (!response.ok) throw new Error(`SOOP live page request failed: ${response.status}`);
+      const status = parseLiveStatusFromPlayHtml(await response.text());
+      if (status.isLive) return status;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) console.warn('Failed to load SOOP live status:', lastError);
+  return { isLive: false, isLoading: false, title: '', thumbnailUrl: '', url: stationLiveUrl };
 }
 
 function normalizeSong(item) {
@@ -326,6 +418,7 @@ export default function ScrapbookPage() {
   const [partCopied, setPartCopied] = useState(false);
   const [latestNotice, setLatestNotice] = useState(null);
   const [noticeLoadFailed, setNoticeLoadFailed] = useState(false);
+  const [liveStatus, setLiveStatus] = useState({ isLive: false, isLoading: true, title: '', thumbnailUrl: '', url: stationLiveUrl });
   const [editingEvent, setEditingEvent] = useState(null);
   const [editingSong, setEditingSong] = useState(null);
   const [newKarmaEntry, setNewKarmaEntry] = useState(null);
@@ -387,6 +480,22 @@ export default function ScrapbookPage() {
     loadData();
     return () => {
       ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function refreshLiveStatus() {
+      const status = await fetchLatestLiveStatus();
+      if (!ignore) setLiveStatus(status);
+    }
+
+    refreshLiveStatus();
+    const timer = window.setInterval(refreshLiveStatus, 60 * 1000);
+    return () => {
+      ignore = true;
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -794,9 +903,20 @@ export default function ScrapbookPage() {
                   <button onClick={() => setActivePage('schedule')}>일정 보기</button>
                 </article>
                 <article className="memo live">
-                  <span className="label">ON AIR</span>
-                  <a className="live-card" href={stationUrl} target="_blank" rel="noreferrer">
-                    <div className="live-offline"><strong>Zzz...</strong><span>OFF LINE</span></div>
+                  <span className={`label ${liveStatus.isLive ? 'is-live' : ''}`}>ON AIR</span>
+                  <a className={`live-card ${liveStatus.isLive ? 'is-live' : ''}`} href={liveStatus.url || stationLiveUrl} target="_blank" rel="noreferrer" aria-label={liveStatus.isLive ? '임하밍 생방송 보기' : '임하밍 방송 페이지 열기'}>
+                    {liveStatus.isLive ? (
+                      liveStatus.thumbnailUrl ? (
+                        <>
+                          <img src={liveStatus.thumbnailUrl} alt="현재 방송 썸네일" />
+                          <div className="live-onair-caption"><span>LIVE</span><strong>{liveStatus.title || '임하밍 생방송'}</strong></div>
+                        </>
+                      ) : (
+                        <div className="live-onair"><strong>LIVE</strong><span>{liveStatus.title || '방송 중'}</span></div>
+                      )
+                    ) : (
+                      <div className="live-offline"><strong>{liveStatus.isLoading ? '...' : 'Zzz...'}</strong><span>{liveStatus.isLoading ? 'CHECKING' : 'OFF LINE'}</span></div>
+                    )}
                   </a>
                 </article>
                 <article className="memo notice">

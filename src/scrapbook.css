@@ -713,6 +713,11 @@ body.desktop-shell-active .desk {
   z-index: 2;
 }
 
+.memo.live .label.is-live {
+  background: #ff5b8f;
+  color: #fff;
+}
+
 .memo.live .live-card {
   position: static;
   right: auto;
@@ -737,6 +742,12 @@ body.desktop-shell-active .desk {
   object-fit: cover;
 }
 
+.memo.live .live-card.is-live {
+  border-color: #ff5b8f;
+  background: #22151c;
+}
+
+.memo.live .live-onair,
 .memo.live .live-offline {
   width: 100%;
   height: 100%;
@@ -747,6 +758,52 @@ body.desktop-shell-active .desk {
   background: #111;
   color: #fff;
   text-align: center;
+}
+
+.memo.live .live-onair {
+  background:
+    radial-gradient(circle at 30% 20%, rgb(255 143 196 / 34%), transparent 36%),
+    linear-gradient(145deg, #19151f, #0f1115);
+}
+
+.memo.live .live-onair-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 5px;
+  padding: 34px 12px 12px;
+  color: #fff;
+  background: linear-gradient(transparent, rgb(0 0 0 / 82%));
+  text-align: left;
+}
+
+.memo.live .live-onair-caption span,
+.memo.live .live-onair strong {
+  width: fit-content;
+  border-radius: 3px;
+  background: #ff5b8f;
+  padding: 3px 6px;
+  color: #fff;
+  font: 900 12px "Noto Sans KR", sans-serif;
+  letter-spacing: 1px;
+}
+
+.memo.live .live-onair-caption strong {
+  overflow: hidden;
+  color: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 900 13px "Noto Sans KR", sans-serif;
+}
+
+.memo.live .live-onair span {
+  max-width: 84%;
+  color: #fff;
+  text-shadow: 2px 2px 0 #2f75ff;
+  font: 900 15px "Noto Sans KR", sans-serif;
+  letter-spacing: 1px;
 }
 
 .memo.live .live-offline strong {
