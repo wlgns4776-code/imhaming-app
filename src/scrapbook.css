@@ -692,6 +692,19 @@ body.desktop-shell-active .desk {
   transform: rotate(-1deg);
 }
 
+.today-event.has-note,
+.event.has-note {
+  cursor: help;
+}
+
+.today-event.has-note::after {
+  content: " memo";
+  color: #413650;
+  font: 900 10px "Noto Sans KR", sans-serif;
+  letter-spacing: 0;
+  opacity: .7;
+}
+
 .memo.live {
   right: 1%;
   top: 5%;
@@ -1052,6 +1065,13 @@ body.desktop-shell-active .desk {
   line-height: 1.08;
 }
 
+.event.has-note strong {
+  text-decoration: underline;
+  text-decoration-color: rgb(65 54 80 / 45%);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .event em {
   grid-column: 3;
   grid-row: 1 / 3;
@@ -1072,6 +1092,34 @@ body.desktop-shell-active .desk {
   place-items: center;
   border: 1px solid #413650;
   background: #fff;
+}
+
+.schedule-note-tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: min(290px, calc(100vw - 24px));
+  pointer-events: none;
+  border: 2px solid #413650;
+  border-radius: 6px;
+  background: #fffef8;
+  padding: 10px 12px;
+  color: #20172e;
+  box-shadow: 4px 5px 0 rgb(255 126 183 / 52%);
+}
+
+.schedule-note-tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #413650;
+  font: 900 12px "Noto Sans KR", sans-serif;
+}
+
+.schedule-note-tooltip p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 900 13px "Noto Sans KR", sans-serif;
+  line-height: 1.45;
 }
 
 .song-layout {

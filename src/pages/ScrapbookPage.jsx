@@ -30,6 +30,7 @@ const karmaCategoryOptions = [
   { value: 'upbo', label: '업보' },
   { value: 'ming', label: '밍조각' },
 ];
+const visibleKarmaCategories = new Set(karmaCategoryOptions.map((item) => item.value));
 function toKstDateKey(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value || '').slice(0, 10);
@@ -68,6 +69,20 @@ function normalizeEvent(item) {
     location: item.memo || '',
     color: item.color || '#ff8fc4',
   };
+}
+
+function sortSchedules(items) {
+  return [...items].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+}
+
+function upsertSchedule(items, item) {
+  const normalized = normalizeEvent(item);
+  const existingIndex = items.findIndex((event) => event.id === normalized.id);
+  if (existingIndex === -1) return sortSchedules([...items, normalized]);
+
+  const next = [...items];
+  next[existingIndex] = normalized;
+  return sortSchedules(next);
 }
 
 function decodeHtmlEntities(value) {
@@ -372,7 +387,7 @@ function karmaInitial(name) {
 
 function normalizeKarmaUsers(items) {
   const grouped = new Map();
-  items.forEach((item) => {
+  items.filter((item) => visibleKarmaCategories.has(item.category || 'upbo')).forEach((item) => {
     const userId = String(item.userId || item.user_id || '').trim();
     const key = userId.toLowerCase() || String(item.id);
     const target = grouped.get(key) || {
@@ -439,6 +454,7 @@ export default function ScrapbookPage() {
   const [isMingGuideOpen, setIsMingGuideOpen] = useState(false);
   const [isKarmaEditMode, setIsKarmaEditMode] = useState(false);
   const [karmaDrafts, setKarmaDrafts] = useState({});
+  const [scheduleTooltip, setScheduleTooltip] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -466,7 +482,7 @@ export default function ScrapbookPage() {
         const heroSetting = songRows.find((song) => song.title === heroSettingTitle);
         const partSession = partRows[0];
 
-        setSchedules(calendarRows.map(normalizeEvent).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+        setSchedules(sortSchedules(calendarRows.map(normalizeEvent)));
         setSongs(normalizedSongs);
         setKarmaUsers(normalizeKarmaUsers(ledgerRows));
         setExchangeRates([...exchangeRateRows].sort((a, b) => (Number(a.sortOrder ?? a.sort_order ?? a.pieces) || 0) - (Number(b.sortOrder ?? b.sort_order ?? b.pieces) || 0)));
@@ -493,6 +509,32 @@ export default function ScrapbookPage() {
     loadData();
     return () => {
       ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    let isRefreshing = false;
+
+    async function refreshSchedules() {
+      if (isRefreshing) return;
+      isRefreshing = true;
+      try {
+        const calendarRows = await base44.entities.CalendarEvent.list();
+        if (!ignore) setSchedules(sortSchedules(calendarRows.map(normalizeEvent)));
+      } catch (error) {
+        console.warn('Failed to refresh schedules:', error);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    const timer = window.setInterval(refreshSchedules, 10 * 1000);
+    window.addEventListener('focus', refreshSchedules);
+    return () => {
+      ignore = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshSchedules);
     };
   }, []);
 
@@ -662,12 +704,10 @@ export default function ScrapbookPage() {
       };
       if (editingEvent.id) {
         const updated = await base44.entities.CalendarEvent.update(editingEvent.id, payload);
-        setSchedules((items) => items.map((item) => (item.id === editingEvent.id ? normalizeEvent(updated) : item))
-          .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+        setSchedules((items) => upsertSchedule(items, updated));
       } else {
         const created = await base44.entities.CalendarEvent.create(payload);
-        setSchedules((items) => [...items, normalizeEvent(created)]
-          .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+        setSchedules((items) => upsertSchedule(items, created));
       }
       setEditingEvent(null);
     } catch (error) {
@@ -691,6 +731,26 @@ export default function ScrapbookPage() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function scheduleTooltipTitle(event) {
+    return [formatScheduleTime(event.time), event.title].filter(Boolean).join(' · ');
+  }
+
+  function showScheduleTooltip(event, pointerEvent) {
+    const memo = String(event.location || '').trim();
+    if (!memo) return;
+    setScheduleTooltip({
+      id: event.id,
+      title: scheduleTooltipTitle(event),
+      memo,
+      x: pointerEvent.clientX,
+      y: pointerEvent.clientY,
+    });
+  }
+
+  function moveScheduleTooltip(pointerEvent) {
+    setScheduleTooltip((current) => (current ? { ...current, x: pointerEvent.clientX, y: pointerEvent.clientY } : current));
   }
 
   function openSongEditor(song = null) {
@@ -912,7 +972,18 @@ export default function ScrapbookPage() {
                 <article className="memo today">
                   <span className="label">TODAY</span>
                   <h2>오늘의 일정</h2>
-                  {todayEvents.length ? todayEvents.slice(0, 3).map((event) => <p key={event.id}>{event.time || '시간 미정'} · {event.title}</p>) : <p>오늘 등록된 일정이 없습니다.</p>}
+                  {todayEvents.length ? todayEvents.slice(0, 3).map((event) => (
+                    <p
+                      className={event.location ? 'today-event has-note' : 'today-event'}
+                      key={event.id}
+                      aria-label={[event.time || '시간 미정', event.title, event.location].filter(Boolean).join(' · ')}
+                      onMouseEnter={(pointerEvent) => showScheduleTooltip(event, pointerEvent)}
+                      onMouseMove={moveScheduleTooltip}
+                      onMouseLeave={() => setScheduleTooltip(null)}
+                    >
+                      {event.time || '시간 미정'} · {event.title}
+                    </p>
+                  )) : <p>오늘 등록된 일정이 없습니다.</p>}
                   <button onClick={() => setActivePage('schedule')}>일정 보기</button>
                 </article>
                 <article className="memo live">
@@ -970,7 +1041,15 @@ export default function ScrapbookPage() {
                       <div className="day-top"><b>{date}</b></div>
                       <div className="event-stack">
                         {events.map((event) => (
-                          <div className="event" key={event.id} style={{ '--event-color': event.color || '#4c8df6' }} title={[event.time, event.title, event.location].filter(Boolean).join(' · ')}>
+                          <div
+                            className={event.location ? 'event has-note' : 'event'}
+                            key={event.id}
+                            style={{ '--event-color': event.color || '#4c8df6' }}
+                            aria-label={[event.time, event.title, event.location].filter(Boolean).join(' · ')}
+                            onMouseEnter={(pointerEvent) => showScheduleTooltip(event, pointerEvent)}
+                            onMouseMove={moveScheduleTooltip}
+                            onMouseLeave={() => setScheduleTooltip(null)}
+                          >
                             <i aria-hidden="true" />
                             <span>{formatScheduleTime(event.time)}</span>
                             <strong>{event.title}</strong>
@@ -1272,6 +1351,19 @@ export default function ScrapbookPage() {
             <button className="edit-save" disabled={isSaving}>{isSaving ? '수정 중' : '수정 저장'}</button>
           </form>
         </div>
+      ) : null}
+
+      {scheduleTooltip ? (
+        <aside
+          className="schedule-note-tooltip"
+          style={{
+            left: `${Math.max(12, Math.min(scheduleTooltip.x + 14, window.innerWidth - 310))}px`,
+            top: `${Math.max(12, Math.min(scheduleTooltip.y + 14, window.innerHeight - 150))}px`,
+          }}
+        >
+          <strong>{scheduleTooltip.title}</strong>
+          <p>{scheduleTooltip.memo}</p>
+        </aside>
       ) : null}
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
