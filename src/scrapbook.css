@@ -628,6 +628,11 @@ body.desktop-shell-active .desk {
   display: none;
 }
 
+.photo-upload.disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .sticker {
   position: absolute;
   z-index: 4;

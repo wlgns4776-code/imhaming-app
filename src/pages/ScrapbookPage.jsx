@@ -435,7 +435,8 @@ export default function ScrapbookPage() {
   const [songs, setSongs] = useState([]);
   const [karmaUsers, setKarmaUsers] = useState([]);
   const [exchangeRates, setExchangeRates] = useState([]);
-  const [heroImageUrl, setHeroImageUrl] = useState(() => localStorage.getItem('imhaming.heroImageUrl') || '');
+  const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [isHeroUploading, setIsHeroUploading] = useState(false);
   const [karmaDetail, setKarmaDetail] = useState(null);
   const [partSongQuery, setPartSongQuery] = useState('');
   const [selectedPartSongId, setSelectedPartSongId] = useState('');
@@ -488,9 +489,9 @@ export default function ScrapbookPage() {
         setExchangeRates([...exchangeRateRows].sort((a, b) => (Number(a.sortOrder ?? a.sort_order ?? a.pieces) || 0) - (Number(b.sortOrder ?? b.sort_order ?? b.pieces) || 0)));
         setLatestNotice(noticeData);
         setNoticeLoadFailed(!noticeData);
-        if (heroSetting && !localStorage.getItem('imhaming.heroImageUrl')) {
-          setHeroImageUrl(heroSetting.lyrics || heroSetting.remarks || heroSetting.coverUrl || '');
-        }
+        const savedHeroImageUrl = heroSetting?.coverUrl || heroSetting?.lyrics || heroSetting?.remarks || localStorage.getItem('imhaming.heroImageUrl') || '';
+        setHeroImageUrl(savedHeroImageUrl);
+        if (heroSetting && savedHeroImageUrl) localStorage.setItem('imhaming.heroImageUrl', savedHeroImageUrl);
         if (partSession) {
           setSelectedPartSongId(String(partSession.song_id || ''));
           setPartSongQuery(partSession.song_title || '');
@@ -616,14 +617,26 @@ export default function ScrapbookPage() {
     };
   })), [karmaDrafts, visibleKarma]);
 
-  function saveHeroImage(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageUrl = String(reader.result || '');
+  async function saveHeroImage(file) {
+    setIsHeroUploading(true);
+    try {
+      const { file_url: imageUrl } = await base44.integrations.Core.UploadFile({ file });
+      if (!imageUrl) throw new Error('Base44 did not return an image URL.');
+
+      const existingSettings = await base44.entities.Song.filter({ title: heroSettingTitle });
+      const setting = existingSettings[0];
+      const payload = { title: heroSettingTitle, coverUrl: imageUrl };
+      if (setting) await base44.entities.Song.update(setting.id, payload);
+      else await base44.entities.Song.create(payload);
+
       setHeroImageUrl(imageUrl);
       localStorage.setItem('imhaming.heroImageUrl', imageUrl);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Failed to save hero image:', error);
+      window.alert('이미지를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsHeroUploading(false);
+    }
   }
 
   function selectPartSong(song) {
@@ -953,11 +966,11 @@ export default function ScrapbookPage() {
                     {heroImageUrl ? <img src={heroImageUrl} alt="임하밍 아카이브 대표 이미지" /> : <><span>IM</span><span>HAMING</span></>}
                   </div>
                   {isAdmin ? (
-                    <label className="photo-upload">
-                      이미지 추가
-                      <input type="file" accept="image/*" onChange={(event) => {
+                    <label className={`photo-upload${isHeroUploading ? ' disabled' : ''}`}>
+                      {isHeroUploading ? '업로드 중' : '이미지 추가'}
+                      <input type="file" accept="image/*" disabled={isHeroUploading} onChange={(event) => {
                         const file = event.target.files?.[0];
-                        if (file) saveHeroImage(file);
+                        if (file) void saveHeroImage(file);
                         event.target.value = '';
                       }} />
                     </label>
