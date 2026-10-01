@@ -398,7 +398,14 @@ function normalizeKarmaUsers(items) {
       counts: {},
       data: {},
       profileImage: '',
+      sourceRecords: [],
     };
+    target.sourceRecords.push({
+      id: String(item.id),
+      category: item.category || '',
+      counts: cleanRecord(item.counts),
+      data: cleanRecord(item.data),
+    });
     Object.assign(target.counts, cleanRecord(item.counts));
     Object.assign(target.data, cleanRecord(item.data));
     target.nickname ||= item.nickname || '';
@@ -913,14 +920,30 @@ export default function ScrapbookPage() {
   async function deleteKarmaItem(user, itemName) {
     if (!user?.id || !itemName || !window.confirm('이 업보 항목을 삭제할까요?')) return;
     setIsSaving(true);
+    setEditError('');
     try {
-      const counts = { ...(user.counts || {}) };
-      const data = { ...(user.data || {}) };
-      delete counts[itemName];
-      delete data[itemName];
-      const updated = await base44.entities.LedgerUser.update(user.id, { counts, data });
-      setKarmaUsers((items) => normalizeKarmaUsers(items.map((item) => (item.id === user.id ? { ...item, ...updated, counts, data } : item))));
-      setKarmaDetail((current) => (current?.id === user.id ? { ...current, counts, data } : current));
+      const sourceRecords = user.sourceRecords?.length
+        ? user.sourceRecords
+        : [{ id: user.id, category: user.category, counts: user.counts, data: user.data }];
+      const updatedSources = await Promise.all(sourceRecords.map(async (record) => {
+        const counts = { ...(record.counts || {}), [itemName]: 0 };
+        const data = { ...(record.data || {}), [itemName]: '' };
+        await base44.entities.LedgerUser.update(record.id, { counts, data });
+        return { ...record, counts, data };
+      }));
+      const nextUser = {
+        ...user,
+        counts: { ...(user.counts || {}), [itemName]: 0 },
+        data: { ...(user.data || {}), [itemName]: '' },
+        sourceRecords: updatedSources,
+      };
+      setKarmaUsers((items) => items
+        .map((item) => (item.id === user.id ? nextUser : item))
+        .filter((item) => karmaItems(item).length > 0));
+      setKarmaDetail((current) => {
+        if (current?.id !== user.id) return current;
+        return karmaItems(nextUser).length ? nextUser : null;
+      });
     } catch (error) {
       console.error('Failed to delete karma:', error);
       setEditError('업보를 삭제하지 못했습니다.');
