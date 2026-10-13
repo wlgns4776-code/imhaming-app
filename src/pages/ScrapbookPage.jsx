@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { base44 } from '../api/base44Client';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from '../components/LoginModal';
+import { ScheduleDetailDialog, ScheduleMembersEditor } from '../components/ScheduleMembers';
+import { normalizeScheduleMembers } from '../utils/soopProfiles';
 import { Info, Pencil, Trash2, X } from 'lucide-react';
 import '../scrapbook.css';
 
@@ -68,6 +70,7 @@ function normalizeEvent(item) {
     title: item.title || '제목 없는 일정',
     location: item.memo || '',
     color: item.color || '#ff8fc4',
+    members: normalizeScheduleMembers(item.members),
   };
 }
 
@@ -439,6 +442,9 @@ export default function ScrapbookPage() {
   const [karmaQuery, setKarmaQuery] = useState('');
   const [baseDate, setBaseDate] = useState(new Date());
   const [schedules, setSchedules] = useState([]);
+  const [savedScheduleMembers, setSavedScheduleMembers] = useState([]);
+  const [scheduleDetailId, setScheduleDetailId] = useState(null);
+  const [isMemberBusy, setIsMemberBusy] = useState(false);
   const [songs, setSongs] = useState([]);
   const [karmaUsers, setKarmaUsers] = useState([]);
   const [exchangeRates, setExchangeRates] = useState([]);
@@ -470,7 +476,7 @@ export default function ScrapbookPage() {
     let ignore = false;
     async function loadData() {
       try {
-        const [calendarRows, songRows, ledgerRows, partRows, exchangeRateRows, noticeData] = await Promise.all([
+        const [calendarRows, songRows, ledgerRows, partRows, exchangeRateRows, noticeData, memberRows] = await Promise.all([
           base44.entities.CalendarEvent.list().catch(() => []),
           base44.entities.Song.list().catch(() => []),
           base44.entities.LedgerUser.list().catch(() => []),
@@ -480,6 +486,7 @@ export default function ScrapbookPage() {
             console.warn('Failed to load latest SOOP notice:', error);
             return null;
           }),
+          base44.entities.ScheduleMember.list().catch(() => []),
         ]);
         if (ignore) return;
 
@@ -491,6 +498,7 @@ export default function ScrapbookPage() {
         const partSession = partRows[0];
 
         setSchedules(sortSchedules(calendarRows.map(normalizeEvent)));
+        setSavedScheduleMembers(normalizeScheduleMembers(memberRows));
         setSongs(normalizedSongs);
         setKarmaUsers(normalizeKarmaUsers(ledgerRows));
         setExchangeRates([...exchangeRateRows].sort((a, b) => (Number(a.sortOrder ?? a.sort_order ?? a.pieces) || 0) - (Number(b.sortOrder ?? b.sort_order ?? b.pieces) || 0)));
@@ -574,6 +582,17 @@ export default function ScrapbookPage() {
     acc[item.date].push(item);
     return acc;
   }, {}), [schedules]);
+
+  const selectedSchedule = schedules.find((event) => event.id === scheduleDetailId);
+  const scheduleMemberLibrary = useMemo(() => normalizeScheduleMembers([
+    ...schedules.flatMap((event) => event.members),
+    ...savedScheduleMembers,
+  ]).sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko')), [schedules, savedScheduleMembers]);
+
+  function openScheduleDetail(event) {
+    setScheduleTooltip(null);
+    setScheduleDetailId(event.id);
+  }
 
   const visibleSongs = useMemo(() => songs.filter((song) => {
     const haystack = `${song.title} ${song.artist} ${song.key} ${song.tags.join(' ')} ${song.proficiency} ${song.remarks}`.toLowerCase();
@@ -700,6 +719,7 @@ export default function ScrapbookPage() {
       time: event.time || '',
       memo: event.location || '',
       color: event.color || eventColors[0],
+      members: normalizeScheduleMembers(event.members),
     } : {
       id: '',
       date: dateKey || toDateKey(today),
@@ -707,11 +727,12 @@ export default function ScrapbookPage() {
       time: '',
       memo: '',
       color: eventColors[0],
+      members: [],
     });
   }
 
   async function saveEvent() {
-    if (!editingEvent?.title?.trim()) return;
+    if (!editingEvent?.title?.trim() || isMemberBusy || isSaving) return;
     setIsSaving(true);
     setEditError('');
     try {
@@ -720,6 +741,7 @@ export default function ScrapbookPage() {
         time: editingEvent.time.trim(),
         memo: editingEvent.memo.trim(),
         color: editingEvent.color || eventColors[0],
+        members: normalizeScheduleMembers(editingEvent.members),
         ...eventDatePayload(editingEvent.date),
       };
       if (editingEvent.id) {
@@ -759,7 +781,7 @@ export default function ScrapbookPage() {
 
   function showScheduleTooltip(event, pointerEvent) {
     const memo = String(event.location || '').trim();
-    if (!memo) return;
+    if (!memo || scheduleDetailId) return;
     setScheduleTooltip({
       id: event.id,
       title: scheduleTooltipTitle(event),
@@ -1008,18 +1030,22 @@ export default function ScrapbookPage() {
                 <article className="memo today">
                   <span className="label">TODAY</span>
                   <h2>오늘의 일정</h2>
-                  {todayEvents.length ? todayEvents.slice(0, 3).map((event) => (
-                    <p
+                  <div className="today-event-list">
+                  {todayEvents.length ? todayEvents.map((event) => (
+                    <button
+                      type="button"
                       className={event.location ? 'today-event has-note' : 'today-event'}
                       key={event.id}
                       aria-label={[event.time || '시간 미정', event.title, event.location].filter(Boolean).join(' · ')}
                       onMouseEnter={(pointerEvent) => showScheduleTooltip(event, pointerEvent)}
                       onMouseMove={moveScheduleTooltip}
                       onMouseLeave={() => setScheduleTooltip(null)}
+                      onClick={() => openScheduleDetail(event)}
                     >
                       {event.time || '시간 미정'} · {event.title}
-                    </p>
+                    </button>
                   )) : <p>오늘 등록된 일정이 없습니다.</p>}
+                  </div>
                   <button onClick={() => setActivePage('schedule')}>일정 보기</button>
                 </article>
                 <article className="memo live">
@@ -1086,9 +1112,11 @@ export default function ScrapbookPage() {
                             onMouseMove={moveScheduleTooltip}
                             onMouseLeave={() => setScheduleTooltip(null)}
                           >
-                            <i aria-hidden="true" />
-                            <span>{formatScheduleTime(event.time)}</span>
-                            <strong>{event.title}</strong>
+                            <button type="button" className="event-view" onClick={() => openScheduleDetail(event)} onDoubleClick={(clickEvent) => clickEvent.stopPropagation()} aria-label={`${event.title} 일정 상세`}>
+                              <i aria-hidden="true" />
+                              <span>{formatScheduleTime(event.time)}</span>
+                              <strong>{event.title}</strong>
+                            </button>
                             {isAdmin ? (
                               <em>
                                 <button type="button" onClick={(clickEvent) => { clickEvent.stopPropagation(); openEventEditor(key, event); }} aria-label="일정 수정"><Pencil size={11} /></button>
@@ -1313,6 +1341,15 @@ export default function ScrapbookPage() {
         </div>
       ) : null}
 
+      {selectedSchedule ? (
+        <ScheduleDetailDialog
+          event={selectedSchedule}
+          timeLabel={selectedSchedule.time ? formatScheduleTime(selectedSchedule.time) : '시간 미정'}
+          onClose={() => setScheduleDetailId(null)}
+          onEdit={isAdmin ? () => { setScheduleDetailId(null); openEventEditor(selectedSchedule.date, selectedSchedule); } : undefined}
+        />
+      ) : null}
+
       {editingEvent ? (
         <div className="modal-dim" onClick={() => setEditingEvent(null)}>
           <form className="edit-panel" onSubmit={(event) => { event.preventDefault(); void saveEvent(); }} onClick={(event) => event.stopPropagation()}>
@@ -1325,8 +1362,17 @@ export default function ScrapbookPage() {
               {eventColors.map((color) => <button type="button" className={editingEvent.color.toLowerCase() === color.toLowerCase() ? 'active' : ''} style={{ '--swatch-color': color }} onClick={() => setEditingEvent({ ...editingEvent, color })} aria-label={`색상 ${color}`} key={color} />)}
             </div>
             <label>메모<textarea value={editingEvent.memo} onChange={(event) => setEditingEvent({ ...editingEvent, memo: event.target.value })} rows={4} /></label>
+            <ScheduleMembersEditor
+              key={editingEvent.id || 'new-event'}
+              members={editingEvent.members}
+              library={scheduleMemberLibrary}
+              disabled={isSaving}
+              onBusyChange={setIsMemberBusy}
+              onChange={(members) => setEditingEvent((current) => current ? { ...current, members } : null)}
+              onMemberSaved={(member) => setSavedScheduleMembers((current) => normalizeScheduleMembers([...current, member]))}
+            />
             {editError ? <p className="edit-error">{editError}</p> : null}
-            <button className="edit-save" disabled={isSaving}>{isSaving ? '저장 중' : '저장'}</button>
+            <button className="edit-save" disabled={isSaving || isMemberBusy}>{isSaving ? '저장 중' : '저장'}</button>
           </form>
         </div>
       ) : null}

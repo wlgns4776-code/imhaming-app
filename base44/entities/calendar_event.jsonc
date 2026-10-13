@@ -39,6 +39,19 @@
       "type": "string",
       "description": "Additional notes or description",
       "nullable": true
+    },
+    "members": {
+      "type": "array",
+      "description": "Participating SOOP members",
+      "items": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "nickname": { "type": "string" },
+          "profileImage": { "type": "string" }
+        },
+        "required": ["userId", "nickname"]
+      }
     }
   },
   "required": ["title", "start", "end"]

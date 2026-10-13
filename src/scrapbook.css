@@ -692,14 +692,51 @@ body.desktop-shell-active .desk {
   left: 2%;
   top: 8%;
   width: 55%;
-  min-height: 28%;
+  display: flex;
+  flex-direction: column;
+  height: 36%;
+  min-height: 0;
   background: #ffb8d7;
   transform: rotate(-1deg);
 }
 
+.memo.today .label {
+  align-self: flex-start;
+}
+
+.today-event-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px;
+}
+
+.memo.today > button {
+  position: static;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
 .today-event.has-note,
 .event.has-note {
-  cursor: help;
+  cursor: pointer;
+}
+
+.memo.today .today-event {
+  position: static;
+  display: block;
+  width: 100%;
+  margin: 4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: 400 17px var(--font-cute);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
 .today-event.has-note::after {
@@ -1019,7 +1056,29 @@ body.desktop-shell-active .desk {
   font: 400 13px var(--font-cute);
 }
 
-.event > i {
+.event-view {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  column-gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.event-view:focus-visible,
+.today-event:focus-visible {
+  outline: 2px solid #413650;
+  outline-offset: 2px;
+}
+
+.event-view > i {
   grid-row: 1 / 3;
   width: 8px;
   height: 8px;

@@ -1,0 +1,10 @@
+{
+  "name": "ScheduleMember",
+  "type": "object",
+  "properties": {
+    "userId": { "type": "string", "description": "SOOP account ID" },
+    "nickname": { "type": "string", "description": "Member display name" },
+    "profileImage": { "type": "string", "description": "SOOP profile image URL" }
+  },
+  "required": ["userId", "nickname"]
+}
