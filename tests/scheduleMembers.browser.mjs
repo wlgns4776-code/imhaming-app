@@ -22,6 +22,17 @@ async function createPage(viewport, admin = false) {
   await context.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (url.pathname.endsWith('/functions/search-soop-members')) {
+      const { query, page: resultPage } = request.postDataJSON();
+      const member = (userId) => ({ userId, nickname: 'same nickname', profileImage: portrait });
+      if (query === 'QA_DUPLICATE') return route.fulfill({ json: { members: [member('qa_one'), member('qa_two')], page: 1, hasMore: false } });
+      if (query === 'QA_EMPTY') return route.fulfill({ json: { members: [], page: 1, hasMore: false } });
+      if (query === 'QA_FAILURE') return route.fulfill({ status: 502, json: { error: 'SOOP 검색을 불러오지 못했습니다.' } });
+      if (query === 'QA_PAGED') return route.fulfill({ json: {
+        members: resultPage === 1 ? [member('qa_one'), member('qa_two')] : [member('qa_two'), member('qa_three')],
+        page: resultPage, hasMore: resultPage === 1,
+      } });
+    }
     if (url.pathname.includes('/entities/')) {
       const segments = url.pathname.split('/');
       const index = segments.indexOf('entities');
@@ -39,7 +50,9 @@ async function createPage(viewport, admin = false) {
         Object.assign(saved, request.postDataJSON());
         return route.fulfill({ json: saved });
       }
-      return route.fulfill({ json: id ? rows[entity].find((item) => item.id === id) : rows[entity] });
+      const query = JSON.parse(url.searchParams.get('q') || '{}');
+      const matching = rows[entity].filter((item) => Object.entries(query).every(([key, value]) => item[key] === value));
+      return route.fulfill({ json: id ? rows[entity].find((item) => item.id === id) : matching });
     }
     if (url.pathname.endsWith('/qa-missing.jpg')) return route.fulfill({ status: 404 });
     if (['bjapi.afreecatv.com', 'play.sooplive.com', 'corsproxy.io', 'api.codetabs.com'].includes(url.hostname)
@@ -73,11 +86,35 @@ try {
   await admin.getByRole('button', { name: '일정 등록', exact: true }).click();
   await admin.getByLabel('제목', { exact: true }).fill(title);
   await admin.getByLabel('메모', { exact: true }).fill('Memo survives member registration');
-  const input = admin.getByLabel('멤버 SOOP ID 또는 방송국 주소');
+  const input = admin.getByLabel('참여 멤버 검색');
   await input.fill('https://example.com/imha22');
   await input.press('Enter');
   assert.match(await admin.getByRole('alert').innerText(), /올바른 SOOP/);
-  await input.fill('https://www.sooplive.com/station/imha22');
+  await input.fill('QA_EMPTY');
+  await input.press('Enter');
+  await admin.getByRole('status').filter({ hasText: '검색 결과가 없습니다.' }).waitFor();
+  await input.fill('QA_FAILURE');
+  await input.press('Enter');
+  await admin.getByRole('alert').filter({ hasText: 'SOOP 검색을 불러오지 못했습니다.' }).waitFor();
+  await input.fill('QA_PAGED');
+  await input.press('Enter');
+  await admin.getByRole('list', { name: '멤버 검색 결과' }).waitFor();
+  assert.equal(await admin.locator('.schedule-member-results li').count(), 2);
+  await admin.getByRole('button', { name: '더 보기', exact: true }).click();
+  await admin.locator('.schedule-member-more').waitFor({ state: 'hidden' });
+  assert.equal(await admin.locator('.schedule-member-results li').count(), 3);
+  await input.fill('QA_DUPLICATE');
+  await input.press('Enter');
+  await admin.getByRole('button', { name: 'same nickname (qa_two) 선택', exact: true }).click();
+  await admin.getByRole('button', { name: '멤버 추가', exact: true }).click();
+  await admin.getByRole('button', { name: 'same nickname 제외', exact: true }).waitFor();
+  assert.equal(rows.ScheduleMember[0].userId, 'qa_two');
+  await admin.getByRole('button', { name: 'same nickname 제외', exact: true }).click();
+  await input.fill('문모모');
+  await input.press('Enter');
+  await admin.getByRole('button', { name: '문모모 (doormomo) 선택', exact: true }).waitFor({ timeout: 20000 });
+  await admin.locator('.schedule-member-results').screenshot({ path: 'artifacts/schedule-nickname-search-desktop.png' });
+  await input.fill('임하밍');
   await input.press('Enter');
   await admin.locator('.schedule-member-candidate').waitFor({ timeout: 20000 });
   assert.equal(await admin.getByLabel('닉네임', { exact: true }).inputValue(), '임하밍');
@@ -89,7 +126,7 @@ try {
   const saved = rows.CalendarEvent.find((item) => item.title === title);
   assert.equal(saved.members.length, 1);
   assert.equal(saved.members[0].userId, 'imha22');
-  assert.equal(rows.ScheduleMember.length, 1);
+  assert.equal(rows.ScheduleMember.length, 2);
 
   await admin.reload({ waitUntil: 'domcontentloaded' });
   await admin.locator('.today-event').first().waitFor();
@@ -145,8 +182,11 @@ try {
   const mobileAdmin = await createPage({ width: 320, height: 844 }, true);
   await openCalendar(mobileAdmin);
   await mobileAdmin.getByRole('button', { name: '일정 등록', exact: true }).click();
-  await mobileAdmin.getByLabel('멤버 SOOP ID 또는 방송국 주소').fill('imha22');
-  await mobileAdmin.getByRole('button', { name: '프로필 불러오기', exact: true }).click();
+  await mobileAdmin.getByLabel('참여 멤버 검색').fill('문모모');
+  await mobileAdmin.getByRole('button', { name: '멤버 검색', exact: true }).click();
+  await mobileAdmin.getByRole('button', { name: '문모모 (doormomo) 선택', exact: true }).waitFor();
+  await mobileAdmin.locator('.edit-panel').screenshot({ path: 'artifacts/schedule-nickname-search-mobile.png' });
+  await mobileAdmin.getByRole('button', { name: '문모모 (doormomo) 선택', exact: true }).click();
   await mobileAdmin.locator('.schedule-member-candidate').waitFor();
   const editorDimensions = await mobileAdmin.locator('.edit-panel').evaluate((node) => ({ scrollWidth: node.scrollWidth, clientWidth: node.clientWidth }));
   assert.ok(editorDimensions.scrollWidth <= editorDimensions.clientWidth + 1);

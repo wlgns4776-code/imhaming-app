@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchSoopProfile, normalizeScheduleMembers, parseSoopUserId, soopStationUrl } from '../src/utils/soopProfiles.js';
+import { fetchSoopProfile, normalizeScheduleMembers, normalizeSoopSearchResults, parseSoopUserId, soopStationUrl } from '../src/utils/soopProfiles.js';
 
 test('accepts SOOP IDs and current and legacy station links', () => {
   for (const input of [
@@ -54,4 +54,16 @@ test('looks up the station nickname and image, and reports missing stations', as
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('search results distinguish identical nicknames by account and preserve pagination', () => {
+  const result = normalizeSoopSearchResults({
+    members: [{ userId: 'member_one', nickname: 'same name' }, { userId: 'member_two', nickname: 'same name' }],
+    page: 2, hasMore: true,
+  });
+  assert.deepEqual(result.members.map((member) => member.userId), ['member_one', 'member_two']);
+  assert.equal(result.page, 2);
+  assert.equal(result.hasMore, true);
+  assert.deepEqual(normalizeSoopSearchResults({ members: [], page: 1, hasMore: false }), { members: [], page: 1, hasMore: false });
+  assert.throws(() => normalizeSoopSearchResults({ error: 'Service failed' }), /Invalid/);
 });

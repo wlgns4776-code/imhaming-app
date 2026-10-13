@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, LoaderCircle, Pencil, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, LoaderCircle, Pencil, Plus, Search, X } from 'lucide-react';
 import { base44 } from '../api/base44Client';
-import { fetchSoopProfile, normalizeScheduleMembers, parseSoopUserId, soopProfileImageUrl, soopStationUrl } from '../utils/soopProfiles';
+import { searchSoopMembers } from '../api/soopMemberSearch';
+import { normalizeScheduleMembers, soopProfileImageUrl, soopStationUrl } from '../utils/soopProfiles';
 import './scheduleMembers.css';
 
 function MemberAvatar({ member }) {
@@ -19,6 +20,10 @@ function MemberAvatar({ member }) {
 export function ScheduleMembersEditor({ members, library, onChange, onMemberSaved, onBusyChange, disabled }) {
   const [input, setInput] = useState('');
   const [candidate, setCandidate] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [resultPage, setResultPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -42,20 +47,27 @@ export function ScheduleMembersEditor({ members, library, onChange, onMemberSave
     return () => onBusyChange(false);
   }, [isSearching, isAdding, onBusyChange]);
 
-  async function searchProfile() {
+  async function searchProfile(loadMore = false) {
     if (busy) return;
     setError('');
-    setCandidate(null);
-    if (!parseSoopUserId(input)) {
-      setError('올바른 SOOP ID 또는 방송국 주소를 입력해 주세요.');
-      return;
+    if (!loadMore) {
+      setCandidate(null);
+      setSearchResults([]);
+      setHasSearched(false);
+      setHasMore(false);
     }
     const controller = new AbortController();
     requestRef.current = controller;
     setIsSearching(true);
     try {
-      const profile = await fetchSoopProfile(input, controller.signal);
-      if (!controller.signal.aborted && activeRef.current) setCandidate(profile);
+      const result = await searchSoopMembers(input, loadMore ? resultPage + 1 : 1, controller.signal);
+      if (!controller.signal.aborted && activeRef.current) {
+        setSearchResults((current) => normalizeScheduleMembers(loadMore ? [...current, ...result.members] : result.members));
+        setResultPage(result.page);
+        setHasMore(result.hasMore);
+        setHasSearched(true);
+        if (!loadMore && result.members.length === 1 && !result.hasMore) setCandidate(result.members[0]);
+      }
     } catch (lookupError) {
       if (!controller.signal.aborted && activeRef.current) {
         setError(lookupError.name === 'AbortError' ? '조회 시간이 초과됐습니다. 다시 시도해 주세요.' : lookupError.message);
@@ -80,6 +92,9 @@ export function ScheduleMembersEditor({ members, library, onChange, onMemberSave
       onChange(normalizeScheduleMembers([...members, payload]));
       setCandidate(null);
       setInput('');
+      setSearchResults([]);
+      setHasSearched(false);
+      setHasMore(false);
     } catch (saveError) {
       console.error('Failed to save schedule member:', saveError);
       if (activeRef.current) setError('멤버를 저장하지 못했습니다. 다시 시도해 주세요.');
@@ -100,17 +115,34 @@ export function ScheduleMembersEditor({ members, library, onChange, onMemberSave
       <div className="schedule-member-search">
         <input
           value={input}
-          onChange={(event) => { setInput(event.target.value); setCandidate(null); setError(''); }}
+          onChange={(event) => { setInput(event.target.value); setCandidate(null); setSearchResults([]); setHasSearched(false); setHasMore(false); setError(''); }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') { event.preventDefault(); void searchProfile(); }
           }}
-          placeholder="SOOP ID 또는 방송국 주소"
-          aria-label="멤버 SOOP ID 또는 방송국 주소"
+          placeholder="닉네임, SOOP ID 또는 방송국 주소"
+          aria-label="참여 멤버 검색"
+          maxLength={200}
         />
-        <button type="button" className="schedule-member-icon" onClick={() => void searchProfile()} title="프로필 불러오기" aria-label="프로필 불러오기" disabled={!input.trim() || busy}>
+        <button type="button" className="schedule-member-icon" onClick={() => void searchProfile()} title="멤버 검색" aria-label="멤버 검색" disabled={!input.trim() || busy}>
           {isSearching ? <LoaderCircle size={18} className="schedule-member-spinner" /> : <Search size={18} />}
         </button>
       </div>
+      {searchResults.length && !candidate ? (
+        <div className="schedule-member-results">
+          <ul aria-label="멤버 검색 결과">
+            {searchResults.map((member) => (
+              <li key={member.userId}>
+                <button type="button" onClick={() => setCandidate(member)} aria-label={`${member.nickname} (${member.userId}) 선택`} disabled={selectedIds.has(member.userId)}>
+                  <MemberAvatar member={member} />
+                  <span><strong>{member.nickname}</strong><small>{member.userId}</small></span>
+                  {selectedIds.has(member.userId) ? <Check size={16} /> : <ChevronRight size={16} />}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {hasMore ? <button type="button" className="schedule-member-more" onClick={() => void searchProfile(true)}><ChevronDown size={16} />더 보기</button> : null}
+        </div>
+      ) : null}
       {candidate ? (
         <div className="schedule-member-candidate">
           <MemberAvatar member={candidate} />
@@ -120,6 +152,7 @@ export function ScheduleMembersEditor({ members, library, onChange, onMemberSave
           </button>
         </div>
       ) : null}
+      {hasSearched && !searchResults.length && !candidate && !error ? <p className="schedule-members-empty" role="status">검색 결과가 없습니다.</p> : null}
       {error ? <p className="edit-error" role="alert">{error}</p> : null}
       {members.length ? (
         <ul className="schedule-member-selected">

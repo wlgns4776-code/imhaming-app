@@ -69,3 +69,12 @@ export async function fetchSoopProfile(value, signal) {
     signal?.removeEventListener('abort', abort);
   }
 }
+
+export function normalizeSoopSearchResults(value) {
+  if (!Array.isArray(value?.members)) throw new Error('Invalid SOOP search response');
+  return {
+    members: normalizeScheduleMembers(value.members),
+    page: Math.max(1, Number(value.page) || 1),
+    hasMore: value.hasMore === true,
+  };
+}

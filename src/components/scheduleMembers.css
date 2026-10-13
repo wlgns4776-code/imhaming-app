@@ -20,6 +20,79 @@
   margin-bottom: 12px;
 }
 
+.schedule-member-results {
+  margin-bottom: 12px;
+  border: 1px solid #b9dfe7;
+  background: #fff;
+}
+
+.schedule-member-results ul {
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.schedule-member-results li + li {
+  border-top: 1px solid #e5e7eb;
+}
+
+.schedule-member-results li button {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 16px;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+  color: #413650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.schedule-member-results li button:hover {
+  background: #f1fafc;
+}
+
+.schedule-member-results li button > span:not(.schedule-member-avatar) {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.schedule-member-results strong {
+  font: 700 13px "Noto Sans KR", sans-serif;
+}
+
+.schedule-member-results small {
+  color: #665a75;
+  font-size: 11px;
+}
+
+.schedule-member-results .schedule-member-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.schedule-member-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 5px;
+  padding: 10px;
+  border: 0;
+  border-top: 1px solid #b9dfe7;
+  background: #f1fafc;
+  color: #413650;
+  font: 700 12px "Noto Sans KR", sans-serif;
+  cursor: pointer;
+}
+
 .schedule-member-candidate {
   grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: end;
