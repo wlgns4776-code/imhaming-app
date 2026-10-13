@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
@@ -105,6 +105,17 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.cjs')
     }
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      if (['https:', 'http:'].includes(new URL(url).protocol)) {
+        void shell.openExternal(url).catch((error) => console.error('Failed to open external link:', error));
+      }
+    } catch (error) {
+      console.error('Invalid external link:', error);
+    }
+    return { action: 'deny' };
   });
 
   // Load the app
